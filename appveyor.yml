@@ -10,3 +10,6 @@ build_script:
     cmake c:\projects\source -G "Visual Studio 14 2015 Win64"
 
     cmake --build . --config "RelWithDebInfo"
+
+test_script:
+- cmd: ctest -C RelWithDebInfo
