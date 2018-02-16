@@ -1,4 +1,5 @@
 #include "../PoGoCmp/PoGoCmp.h"
+#include "../ThirdParty/nlohmann/json/json.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -6,7 +7,10 @@
 
 int main(int argc, char **argv)
 {
-    std::cout << argc << std::endl;
+    using json = nlohmann::json;
+
+    std::cout << json::meta() << "\n";
+
     if (argc < 2) {
         std::cerr << "Output path missing. Usage: PoGoCmpDbGen <outputhPath>\n";
         return EXIT_FAILURE;

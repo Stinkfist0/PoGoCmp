@@ -11,7 +11,7 @@
 See the beginning of the root `CMakeLists.txt` for the build options.
 
 ## Dependencies
- - None currently
+ - [JSON for Modern C++ 3.1.1](https://github.com/nlohmann/json), embedded in the repository
 
 ## Building 
 
