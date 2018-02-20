@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     std::string arg1{ argv[1] };
     if (arg1 == "-v" || arg1 == "--version")
     {
-        std::cout << "PoGoCmp version " << PoGoCmpVersion() << "\n";
+        std::cout << "PoGoCmp version " << PoGoCmpVersionString() << "\n";
     }
     else
     {
