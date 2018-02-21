@@ -45,7 +45,7 @@ typedef enum PokemonType
 
 struct PokemonSpecie
 {
-    /// Pokedex number.
+    /// Pokédex number.
     uint16_t number;
     /// Base attack.
     uint16_t baseAtk;
@@ -53,9 +53,17 @@ struct PokemonSpecie
     uint16_t baseDef;
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokemon's specie name, uppercase.
+    /// Pokémon's specie name, uppercase with underscores
     /// Punctuation and other "special" characters are replaced with underscores.
-    char name[10];
+    /// There are only a handful of Pokémon with special character's in their names:
+    /// - Farfetch'd -> FARFETCHD
+    /// - Ho-Oh -> HO_OH
+    /// - Flabébé -> Unknown at the moment, probably FLABEBE
+    /// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+    /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
+    /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
+    /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
+    char name[15];
     /// Primary type.
     PokemonType type;
     /// Secondary type, if applicable.

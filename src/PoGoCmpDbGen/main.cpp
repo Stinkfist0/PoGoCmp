@@ -3,7 +3,16 @@
 #endif
 
 #include "../PoGoCmp/PoGoCmp.h"
+// Disable couple MSVC's static analyser warnings coming from json.hpp
+// The C28020 in particular is probably a false positive.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 6031 28020)
+#endif
 #include "../ThirdParty/nlohmann/json/json.hpp"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include <iostream>
 #include <fstream>
@@ -139,7 +148,7 @@ namespace PoGoCmp {
     output <<
 R"(struct PokemonSpecie
 {
-    /// Pokedex number.
+    /// Pokédex number.
     uint16_t number;
     /// Base attack.
     uint16_t baseAtk;
@@ -147,8 +156,16 @@ R"(struct PokemonSpecie
     uint16_t baseDef;
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokemon's specie name, uppercase.
+    /// Pokémon's specie name, uppercase with underscores
     /// Punctuation and other "special" characters are replaced with underscores.
+    /// There are only a handful of Pokémon with special character's in their names:
+    /// - Farfetch'd -> FARFETCHD
+    /// - Ho-Oh -> HO_OH
+    /// - Flabébé -> Unknown at the moment, probably FLABEBE
+    /// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+    /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
+    /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
+    /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
     std::string name;
     /// Primary type.
     PokemonType type;
@@ -199,11 +216,11 @@ struct StringLessThanI
 
 )";
 
-    output << "static const std::map<std::string, PokemonSpecie, StringLessThanI> PokemonByName {\n";
+    output << "static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByName {\n";
     for (const auto& it : pokemonTable)
     {
         //writePokemon(std::quoted(it.second.name), it.second);
-        output << indent << "{ " << std::quoted(it.second.name) << ", PokemonByNumber[" << it.first - 1 << "] },\n" ;
+        output << indent << "{ " << std::quoted(it.second.name) << ", &PokemonByNumber[" << it.first - 1 << "] },\n" ;
     }
     output << "};\n\n";
 
