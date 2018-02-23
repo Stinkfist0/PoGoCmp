@@ -46,10 +46,11 @@ struct PokemonSpecie
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
     /// Pokémon's specie name, uppercase with underscores
-    /// Punctuation and other "special" characters are replaced with underscores.
     /// There are only a handful of Pokémon with special character's in their names:
+    /// - Mr. Mime -> MR_MIME
     /// - Farfetch'd -> FARFETCHD
     /// - Ho-Oh -> HO_OH
+    /// - Mime Jr. -> Unknown at the moment, probably MIME_JR
     /// - Flabébé -> Unknown at the moment, probably FLABEBE
     /// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
     /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
@@ -414,7 +415,7 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 348, 222, 183, 150, "ARMALDO", PokemonType::ROCK, PokemonType::BUG },
     { 349, 29, 102, 40, "FEEBAS", PokemonType::WATER, PokemonType::NONE },
     { 350, 192, 242, 190, "MILOTIC", PokemonType::WATER, PokemonType::NONE },
-    { 351, 139, 139, 140, "CASTFORM", PokemonType::NORMAL, PokemonType::NONE },
+    { 351, 139, 139, 140, "CASTFORM_SUNNY", PokemonType::FIRE, PokemonType::NONE },
     { 352, 161, 212, 120, "KECLEON", PokemonType::NORMAL, PokemonType::NONE },
     { 353, 138, 66, 88, "SHUPPET", PokemonType::GHOST, PokemonType::NONE },
     { 354, 218, 127, 128, "BANETTE", PokemonType::GHOST, PokemonType::NONE },
@@ -449,18 +450,72 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 383, 270, 251, 182, "GROUDON", PokemonType::GROUND, PokemonType::NONE },
     { 384, 284, 170, 191, "RAYQUAZA", PokemonType::DRAGON, PokemonType::FLYING },
     { 385, 210, 210, 200, "JIRACHI", PokemonType::STEEL, PokemonType::PSYCHIC },
-    { 386, 1, 1, 1, "DEOXYS", PokemonType::PSYCHIC, PokemonType::NONE },
+    { 386, 1, 1, 1, "DEOXYS_SPEED", PokemonType::PSYCHIC, PokemonType::NONE },
 }};
+
+/// Case-insensitive string comparison.
+static int StrCmpI(const char* str1, const char* str2)
+{
+#ifdef _WIN32
+    return _stricmp(str1, str2) < 0;
+#else
+    return strcasecmp(str1, str2) < 0;
+#endif
+}
+
+/// case-insensitive
+static PokemonType StringToPokemonType(const char* str)
+{
+    if (StrCmpI(str, "BUG") == 0) return PokemonType::BUG;
+    if (StrCmpI(str, "DARK") == 0) return PokemonType::DARK;
+    if (StrCmpI(str, "DRAGON") == 0) return PokemonType::DRAGON;
+    if (StrCmpI(str, "ELECTRIC") == 0) return PokemonType::ELECTRIC;
+    if (StrCmpI(str, "FAIRY") == 0) return PokemonType::FAIRY;
+    if (StrCmpI(str, "FIGHTING") == 0) return PokemonType::FIGHTING;
+    if (StrCmpI(str, "FIRE") == 0) return PokemonType::FIRE;
+    if (StrCmpI(str, "FLYING") == 0) return PokemonType::FLYING;
+    if (StrCmpI(str, "GHOST") == 0) return PokemonType::GHOST;
+    if (StrCmpI(str, "GRASS") == 0) return PokemonType::GRASS;
+    if (StrCmpI(str, "GROUND") == 0) return PokemonType::GROUND;
+    if (StrCmpI(str, "ICE") == 0) return PokemonType::ICE;
+    if (StrCmpI(str, "NORMAL") == 0) return PokemonType::NORMAL;
+    if (StrCmpI(str, "POISON") == 0) return PokemonType::POISON;
+    if (StrCmpI(str, "PSYCHIC") == 0) return PokemonType::PSYCHIC;
+    if (StrCmpI(str, "ROCK") == 0) return PokemonType::ROCK;
+    if (StrCmpI(str, "STEEL") == 0) return PokemonType::STEEL;
+    if (StrCmpI(str, "WATER") == 0) return PokemonType::WATER;
+    return PokemonType::NONE;
+}
+
+/// Returns all-uppercase name
+static const char* PokemonTypeToString(PokemonType type)
+{
+    if (type == PokemonType::BUG) return "BUG";
+    if (type == PokemonType::DARK) return "DARK";
+    if (type == PokemonType::DRAGON) return "DRAGON";
+    if (type == PokemonType::ELECTRIC) return "ELECTRIC";
+    if (type == PokemonType::FAIRY) return "FAIRY";
+    if (type == PokemonType::FIGHTING) return "FIGHTING";
+    if (type == PokemonType::FIRE) return "FIRE";
+    if (type == PokemonType::FLYING) return "FLYING";
+    if (type == PokemonType::GHOST) return "GHOST";
+    if (type == PokemonType::GRASS) return "GRASS";
+    if (type == PokemonType::GROUND) return "GROUND";
+    if (type == PokemonType::ICE) return "ICE";
+    if (type == PokemonType::NORMAL) return "NORMAL";
+    if (type == PokemonType::POISON) return "POISON";
+    if (type == PokemonType::PSYCHIC) return "PSYCHIC";
+    if (type == PokemonType::ROCK) return "ROCK";
+    if (type == PokemonType::STEEL) return "STEEL";
+    if (type == PokemonType::WATER) return "WATER";
+    return "NONE";
+}
 
 struct StringLessThanI
 {
     bool operator()(const std::string& lhs, const std::string& rhs) const
     {
-#ifdef _WIN32
-        return _stricmp(lhs.c_str(), rhs.c_str()) < 0;
-#else
-        return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
-#endif
+        return StrCmpI(lhs.c_str(), rhs.c_str()) < 0;
     }
 };
 

@@ -2,7 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "../PoGoCmp/PoGoCmp.h"
+#include "../PoGoCmp/PoGoCmpDb.h"
 // Disable couple MSVC's static analyser warnings coming from json.hpp
 // The C28020 in particular is probably a false positive.
 #ifdef _MSC_VER
@@ -23,17 +23,6 @@
 #include <iomanip>
 #include <set>
 #include <ctime>
-
-struct PokemonSpecieStr
-{
-    uint16_t number;
-    uint16_t baseAtk;
-    uint16_t baseDef;
-    uint16_t baseSta;
-    std::string name;
-    std::string type;
-    std::string type2;
-};
 
 int main(int argc, char **argv)
 {
@@ -59,7 +48,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    std::map<uint16_t, PokemonSpecieStr> pokemonTable;
+    using namespace PoGoCmp;
+    std::map<uint16_t, PokemonSpecie> pokemonTable;
     std::set<std::string> pokemonTypes;
 
     using namespace nlohmann;
@@ -71,7 +61,8 @@ int main(int argc, char **argv)
         std::string timestampMs = jsonInput["timestampMs"];
         auto timestampS = (time_t)std::stoll(timestampMs.c_str()) / 1000;
         auto tm = std::localtime(&timestampS);
-        std::cout << "Input file's timestamp " << std::put_time(tm, "%c") << "\n";
+        auto dateTimeOffset = std::put_time(tm, "%F %T%z"); // ISO 8601 with offset
+        std::cout << "Input file's timestamp " << dateTimeOffset << "\n";
 
         const std::regex idPattern{"V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "V0122_POKEMON_MR_MIME"
         const std::regex typePattern{"POKEMON_TYPE_(\\w+)"}; // e.g. "POKEMON_TYPE_PSYCHIC"
@@ -84,7 +75,7 @@ int main(int argc, char **argv)
             {
                 // Defer writing the actual Pokemon data after the enums are written.
                 const auto& settings = itemTemplate["pokemonSettings"];
-                PokemonSpecieStr pkm;
+                PokemonSpecie pkm;
                 pkm.number = (uint16_t)std::stoi(matches[1]);
                 pkm.name = matches[2];
                 pkm.baseAtk = settings["stats"]["baseAttack"];
@@ -94,7 +85,8 @@ int main(int argc, char **argv)
                 std::string type = settings["type"];
                 std::regex_match(type, matches, typePattern);
                 pokemonTypes.insert(matches[1]);
-                pkm.type = matches[1];
+                pkm.type = StringToPokemonType(matches[1].str().c_str());
+                assert(pkm.type != PokemonType::NONE);
                 // Secondary type, if applicable
                 auto it = settings.find("type2");
                 if (it != settings.end())
@@ -102,7 +94,7 @@ int main(int argc, char **argv)
                     std::string type2 = *it;
                     std::regex_match(type2, matches, typePattern);
                     pokemonTypes.insert(matches[1]);
-                    pkm.type2 = matches[1];
+                    pkm.type2 = StringToPokemonType(matches[1].str().c_str());
                 }
 
                 pokemonTable[pkm.number] = pkm;
@@ -143,8 +135,6 @@ namespace PoGoCmp {
     }
     output << "};\n\n";
 
-    // TODO EnumToString and StringToEnum functions
-
     output <<
 R"(struct PokemonSpecie
 {
@@ -157,10 +147,11 @@ R"(struct PokemonSpecie
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
     /// Pokémon's specie name, uppercase with underscores
-    /// Punctuation and other "special" characters are replaced with underscores.
     /// There are only a handful of Pokémon with special character's in their names:
+    /// - Mr. Mime -> MR_MIME
     /// - Farfetch'd -> FARFETCHD
     /// - Ho-Oh -> HO_OH
+    /// - Mime Jr. -> Unknown at the moment, probably MIME_JR
     /// - Flabébé -> Unknown at the moment, probably FLABEBE
     /// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
     /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
@@ -175,14 +166,14 @@ R"(struct PokemonSpecie
 
 )";
 
-    auto writePokemon = [&](const PokemonSpecieStr& pkm)
+    auto writePokemon = [&](const PokemonSpecie& pkm)
     {
-        output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef
-            << ", " << pkm.baseSta << ", " << std::quoted(pkm.name) << ", PokemonType::" << pkm.type
-            << ", PokemonType::" << (pkm.type2.empty() ? typeNone : pkm.type2) << " }";
+        output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
+            << ", " << std::quoted(pkm.name) << ", PokemonType::" << PokemonTypeToString(pkm.type)
+            << ", PokemonType::" << PokemonTypeToString((pkm.type2)) << " }";
     };
 
-    //auto writePokemonMap = [&](const auto& key, const PokemonSpecieStr& pkm)
+    //auto writePokemonMap = [&](const auto& key, const PokemonSpecie& pkm)
     //{
     //    output << indent << "{ " << key << ", " << writePokemon(pkm) << " },\n";
     //};
@@ -198,19 +189,43 @@ R"(struct PokemonSpecie
         output << ",\n";
         //writePokemonMap(it.second.number, it.second);
     }
-    output << "}};\n";
+    output << "}};\n\n";
 
     output <<
-R"(
-struct StringLessThanI
+R"(/// Case-insensitive string comparison.
+int StrCmpI(const char* str1, const char* str2)
+{
+#ifdef _WIN32
+    return _stricmp(str1, str2) < 0;
+#else
+    return strcasecmp(str1, str2) < 0;
+#endif
+}
+
+)";
+
+    output << "/// case-insensitive\n";
+    output << "PokemonType StringToPokemonType(const char* str)\n";
+    output << "{\n";
+    for (auto type : pokemonTypes)
+        output << indent << "if (StrCmpI(str, " << std::quoted(type) << ") == 0) return PokemonType::" << type << ";\n";
+    output << indent << "return PokemonType::NONE;\n";
+    output << "}\n\n";
+
+    output << "/// Returns all-uppercase name\n";
+    output << "const char* PokemonTypeToString(PokemonType type)\n";
+    output << "{\n";
+    for (auto type : pokemonTypes)
+        output << indent << "if (type == PokemonType::" << type << ") return " << std::quoted(type) << ";\n";
+    output << indent << "return " << std::quoted(typeNone) << ";\n";
+    output << "}\n\n";
+
+    output <<
+R"(struct StringLessThanI
 {
     bool operator()(const std::string& lhs, const std::string& rhs) const
     {
-#ifdef _WIN32
-        return _stricmp(lhs.c_str(), rhs.c_str()) < 0;
-#else
-        return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
-#endif
+        return StrCmpI(lhs.c_str(), rhs.c_str()) < 0;
     }
 };
 
