@@ -196,9 +196,9 @@ R"(/// Case-insensitive string comparison.
 int StrCmpI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
-    return _stricmp(str1, str2) < 0;
+    return _stricmp(str1, str2);
 #else
-    return strcasecmp(str1, str2) < 0;
+    return strcasecmp(str1, str2);
 #endif
 }
 
