@@ -75,7 +75,7 @@ int main(int argc, char **argv)
             {
                 // Defer writing the actual Pokemon data after the enums are written.
                 const auto& settings = itemTemplate["pokemonSettings"];
-                PokemonSpecie pkm;
+                PokemonSpecie pkm{};
                 pkm.number = (uint16_t)std::stoi(matches[1]);
                 pkm.name = matches[2];
                 pkm.baseAtk = settings["stats"]["baseAttack"];
@@ -193,7 +193,7 @@ R"(struct PokemonSpecie
 
     output <<
 R"(/// Case-insensitive string comparison.
-int StrCmpI(const char* str1, const char* str2)
+static inline int StrCmpI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
     return _stricmp(str1, str2);
@@ -205,7 +205,7 @@ int StrCmpI(const char* str1, const char* str2)
 )";
 
     output << "/// case-insensitive\n";
-    output << "PokemonType StringToPokemonType(const char* str)\n";
+    output << "static inline PokemonType StringToPokemonType(const char* str)\n";
     output << "{\n";
     for (auto type : pokemonTypes)
         output << indent << "if (StrCmpI(str, " << std::quoted(type) << ") == 0) return PokemonType::" << type << ";\n";
@@ -213,7 +213,7 @@ int StrCmpI(const char* str1, const char* str2)
     output << "}\n\n";
 
     output << "/// Returns all-uppercase name\n";
-    output << "const char* PokemonTypeToString(PokemonType type)\n";
+    output << "static inline const char* PokemonTypeToString(PokemonType type)\n";
     output << "{\n";
     for (auto type : pokemonTypes)
         output << indent << "if (type == PokemonType::" << type << ") return " << std::quoted(type) << ";\n";

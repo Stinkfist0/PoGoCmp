@@ -454,7 +454,7 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
 }};
 
 /// Case-insensitive string comparison.
-static int StrCmpI(const char* str1, const char* str2)
+static inline int StrCmpI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
     return _stricmp(str1, str2);
@@ -464,7 +464,7 @@ static int StrCmpI(const char* str1, const char* str2)
 }
 
 /// case-insensitive
-static PokemonType StringToPokemonType(const char* str)
+static inline PokemonType StringToPokemonType(const char* str)
 {
     if (StrCmpI(str, "BUG") == 0) return PokemonType::BUG;
     if (StrCmpI(str, "DARK") == 0) return PokemonType::DARK;
@@ -488,7 +488,7 @@ static PokemonType StringToPokemonType(const char* str)
 }
 
 /// Returns all-uppercase name
-static const char* PokemonTypeToString(PokemonType type)
+static inline const char* PokemonTypeToString(PokemonType type)
 {
     if (type == PokemonType::BUG) return "BUG";
     if (type == PokemonType::DARK) return "DARK";
