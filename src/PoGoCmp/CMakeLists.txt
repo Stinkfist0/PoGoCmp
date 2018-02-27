@@ -1,4 +1,4 @@
-set(headers PoGoCmp.h PoGoCmpDb.h)
+set(headers PoGoCmp.h PoGoCmpDb.h StringUtils.h)
 set(sources PoGoCmp.cpp)
 
 if (BUILD_SHARED_LIBS)

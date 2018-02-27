@@ -5,9 +5,33 @@
 
 #include <string>
 #include <cstring>
+#include <locale>
 
 namespace StringUtils
 {
+
+void SnakeCaseToTitleCase(std::string &str)
+{
+    if (str.empty()) return;
+    const auto& cLocale = std::locale::classic();
+    size_t i = 0;
+    str[i] = std::toupper(str[i], cLocale);
+    for (++i; i < str.length(); ++i)
+    {
+        if (str[i] == '_') str[i] = ' ';
+        else if (str[i - 1] == ' ') str[i] = std::toupper(str[i], cLocale);
+        else str[i] = std::tolower(str[i], cLocale);
+    }
+}
+
+std::string SnakeCaseToTitleCase(const std::string &str)
+{
+    if (str.empty()) return str;
+    auto copy = str;
+    SnakeCaseToTitleCase(copy);
+    return copy;
+}
+
 // https://stackoverflow.com/a/18899027
 namespace detail {
 

@@ -1,5 +1,6 @@
 #include "../PoGoCmp/PoGoCmp.h"
 #include "../PoGoCmp/PoGoCmpDb.h"
+#include "../PoGoCmp/StringUtils.h"
 
 #include <iostream>
 #include <string>
@@ -38,17 +39,21 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
     return out;
 }
 
-const std::string defaultFormat{ "%nu %na atk %a def %d sta %s type %T type2 %t" };
+const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
 
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information."},
-    { "list", "", "List all Pokemon."},
-    //{ "-a", "--ascending", "Sort possible print in ascending order." },
+    { "list", "", "List all Pokemon."
+    // "List Pokemon by certain criteria: 'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range e.g. '16-32)'"},
+    // TODO (genX), type=normal/electric/X
+    //{ "-a", "--ascending", "Sort possible print in ascending order."
+    },
     { "-d", "--descending", "Sort possible print in descending order (ascending by default)." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
-        "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type)"
+        "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
+        "%Tt (both types, 2nd type only if applicable)"
     }
 };
 
@@ -56,10 +61,8 @@ struct ProgamOptionMap
 {
     using ConstIterator = std::vector<std::string>::const_iterator;
 
-    ProgamOptionMap(int argc, char **argv) :
-        args(argv + 1, argv + argc) // ignore the program invokation argument argv[0]
-    {
-    }
+    /// The program invokation argument argv[0] is ignored.
+    ProgamOptionMap(int argc, char **argv) : args(argv + 1, argv + argc) {}
 
     bool HasOption(const std::string& shortName, const std::string& longName) const
     {
@@ -73,8 +76,8 @@ struct ProgamOptionMap
     {
         auto optIt = std::find_if(args.begin(), args.end(),
             [&](const auto& arg) { return arg == shortName || arg == longName; });
-        auto valueIt = optIt + 1;
-        return optIt != args.end() && IsValue(valueIt) ? *valueIt : "";
+        auto valueIt = optIt != args.end() ? optIt + 1 : args.end();
+        return IsValue(valueIt) ? *valueIt : "";
     }
 
     std::string OptionValue(const std::string& name) const { return OptionValue(name, name); }
@@ -90,13 +93,20 @@ struct ProgamOptionMap
 
 std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt)
 {
+    using namespace StringUtils;
+    const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type));
+    const auto type2 = pkm.type2 == PoGoCmp::PokemonType::NONE
+        ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type2));
+    const auto types = StringUtils::Concatenate(type, (!type2.empty() ? "/" : ""), type2);
+
     fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(pkm.number));
-    fmt = std::regex_replace(fmt, std::regex("%na"), pkm.name);
+    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(pkm.name)); /**< @todo handle Ho-Oh and other special cases */
     fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(pkm.baseAtk));
     fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(pkm.baseDef));
     fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(pkm.baseSta));
-    fmt = std::regex_replace(fmt, std::regex("%T"), PoGoCmp::PokemonTypeToString(pkm.type));
-    fmt = std::regex_replace(fmt, std::regex("%t"), PoGoCmp::PokemonTypeToString(pkm.type2));
+    fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
+    fmt = std::regex_replace(fmt, std::regex("%T"), type);
+    fmt = std::regex_replace(fmt, std::regex("%t"), type2);
     //str = std::regex_replace(str, std::regex("%%"), "%");
     return fmt;
 }
@@ -144,6 +154,7 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("list"))
     {
+        std::string criteria = opts.OptionValue("-f", "--format");
         std::string format = defaultFormat;
         if (opts.HasOption("-f", "--format"))
         {
