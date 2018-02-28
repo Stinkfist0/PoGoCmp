@@ -45,12 +45,11 @@ const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information."},
-    { "list", "", "List all Pokemon." },
+    { "list", "", "List the first Pokemon in order by certain criteria: "
+        "'all' (default), 'gen<X>' (1/2/3)"/*, '<X>-<Y>' (Pokedex range e.g. '16-32)'"*/},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
-    // "List Pokemon by certain criteria: 'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range e.g. '16-32)'"},
-    // TODO (genX), type=normal/electric/X
     //{ "-a", "--ascending", "Sort possible print in ascending order."
-    { "-d", "--descending", "Sort possible print in descending order (ascending by default)." },
+    { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
@@ -161,9 +160,33 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("list"))
     {
-        //std::string criteria = opts.OptionValue("list");
-        //if (criteria.find("gen" == 0)) {}
-        //else if (...) {}
+        std::string listValue = opts.OptionValue("list");
+        std::pair<size_t, size_t> range; // Pokedex number, number - 1 for the index.
+        if (listValue.find("all") == 0 || listValue.empty())
+        {
+            range.first = 1;
+            range.second = PoGoCmp::PokemonByNumber.size();
+        }
+        else if (listValue.find("gen1") == 0) /// @todo Generic genX
+        {
+            /// @todo generate values for these in PoGoCmpDb.h
+            range.first = 1;
+            range.second = 151;
+        }
+        else if (listValue.find("gen2") == 0)
+        {
+            range.first = 152;
+            range.second = 251;
+        }
+        else if (listValue.find("gen3") == 0)
+        {
+            range.first = 252;
+            range.second = 386;
+        }
+        else
+        {
+            LogErrorAndExit(StringUtils::Concatenate("Invalid value for list ", listValue));
+        }
 
         std::string format = defaultFormat;
         if (opts.HasOption("-f", "--format"))
@@ -175,12 +198,12 @@ int main(int argc, char **argv)
             }
         }
 
-        size_t numResults{};
+        size_t numResults = PoGoCmp::PokemonByNumber.size();
         if (opts.HasOption("-r", "--results"))
         {
             try
             {
-                numResults = (size_t)std::stoul(opts.OptionValue("-r", "--results"));
+                numResults = std::min((size_t)std::stoul(opts.OptionValue("-r", "--results")), numResults);
             }
             catch(const std::exception& e)
             {
@@ -188,13 +211,21 @@ int main(int argc, char **argv)
             }
         }
 
+        auto begin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
+        auto matches = (size_t)std::distance(begin, PoGoCmp::PokemonByNumber.begin() + range.second);
+
+        std::cout << matches << " matches (showing ";
+        numResults = std::min(numResults, matches);
+        std::cout << numResults << " results):\n";
+
         std::vector<PoGoCmp::PokemonSpecie> results;
-        numResults = std::min(numResults, PoGoCmp::PokemonByNumber.size());
-        results.insert(results.begin(), PoGoCmp::PokemonByNumber.begin(), PoGoCmp::PokemonByNumber.begin() + numResults);
+        results.insert(results.begin(), begin, begin + numResults);
+
         if (opts.HasOption("-d", "--descending"))
         {
             std::reverse(results.begin(), results.end());
         }
+
         for(const auto& pkm : results)
         {
             std::cout << PokemonToString(pkm, format) << "\n";
