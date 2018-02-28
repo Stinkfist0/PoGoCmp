@@ -19,10 +19,10 @@ struct ProgramOption
         type = IsArg(shortName) || IsArg(longName) ? Arg : Cmd;
     }
     /// Commands have no prefix, arguments have either "-" or "--" prefix.
+    /// @todo could support also /-prefix, also e.g. would be nice to ignore/warn about e.g. ---prefix
     static bool IsArg(const std::string &str)
     {
-        /// @todo could support also /-prefix, also e.g. would be nice to ignore/warn about e.g. ---prefix
-        return str.find_first_of("-") == 0;
+        return str.find_first_of("-") == 0 && !StringUtils::IsNumber(str);
     }
 
     enum Type : bool { Cmd, Arg };
@@ -31,6 +31,7 @@ struct ProgramOption
     std::string shortName;
     std::string longName;
     std::string help;
+    ///std::string longHelp; // when -h <command> is used?
 };
 
 std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
@@ -44,11 +45,11 @@ const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information."},
-    { "list", "", "List all Pokemon."
+    { "list", "", "List all Pokemon." },
+    { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     // "List Pokemon by certain criteria: 'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range e.g. '16-32)'"},
     // TODO (genX), type=normal/electric/X
     //{ "-a", "--ascending", "Sort possible print in ascending order."
-    },
     { "-d", "--descending", "Sort possible print in descending order (ascending by default)." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
@@ -124,6 +125,12 @@ void PrintHelp()
             std::cout << "  " << opt << "\n";
 }
 
+void LogErrorAndExit(const std::string& msg)
+{
+    std::cerr << msg << "\n";
+    std::exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv)
 {
     ProgamOptionMap opts(argc, argv);
@@ -154,24 +161,41 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("list"))
     {
-        std::string criteria = opts.OptionValue("-f", "--format");
+        //std::string criteria = opts.OptionValue("list");
+        //if (criteria.find("gen" == 0)) {}
+        //else if (...) {}
+
         std::string format = defaultFormat;
         if (opts.HasOption("-f", "--format"))
         {
             format = opts.OptionValue("-f", "--format");
             if (format.empty())
             {
-                std::cerr << "Value missing for -f/--format\n";
-                return EXIT_FAILURE;
+                LogErrorAndExit("Value missing for -f/--format\n");
             }
         }
 
-        auto allPokemon = PoGoCmp::PokemonByNumber;
+        size_t numResults{};
+        if (opts.HasOption("-r", "--results"))
+        {
+            try
+            {
+                numResults = (size_t)std::stoul(opts.OptionValue("-r", "--results"));
+            }
+            catch(const std::exception& e)
+            {
+                LogErrorAndExit(StringUtils::Concatenate("Failed to parse -r/--results value: ", e.what()));
+            }
+        }
+
+        std::vector<PoGoCmp::PokemonSpecie> results;
+        numResults = std::min(numResults, PoGoCmp::PokemonByNumber.size());
+        results.insert(results.begin(), PoGoCmp::PokemonByNumber.begin(), PoGoCmp::PokemonByNumber.begin() + numResults);
         if (opts.HasOption("-d", "--descending"))
         {
-            std::reverse(allPokemon.begin(), allPokemon.end());
+            std::reverse(results.begin(), results.end());
         }
-        for(const auto& pkm : allPokemon)
+        for(const auto& pkm : results)
         {
             std::cout << PokemonToString(pkm, format) << "\n";
         }

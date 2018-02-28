@@ -32,6 +32,13 @@ std::string SnakeCaseToTitleCase(const std::string &str)
     return copy;
 }
 
+bool IsNumber(const std::string& str)
+{
+    char* p;
+    (void)std::strtod(str.c_str(), &p);
+    return *p == 0;
+}
+
 // https://stackoverflow.com/a/18899027
 namespace detail {
 
