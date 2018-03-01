@@ -9,6 +9,15 @@
 #include <sstream>
 #include <regex>
 
+const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
+/// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
+/// @todo generate values for these in PoGoCmpDb.h
+using PokedexRange = std::pair<size_t, size_t>;
+const PokedexRange gen1Range{ 1, 151 };
+const PokedexRange gen2Range{ 152, 251 };
+const PokedexRange gen3Range{ 252, 386 };
+const PokedexRange maxRange{ 1, PoGoCmp::PokemonByNumber.size() };
+
 struct ProgramOption
 {
     ProgramOption() {}
@@ -40,13 +49,11 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
     return out;
 }
 
-const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
-
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information."},
     { "list", "", "List the first Pokemon in order by certain criteria: "
-        "'all' (default), 'gen<X>' (1/2/3)"/*, '<X>-<Y>' (Pokedex range e.g. '16-32)'"*/},
+        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range, e.g.'16-32)'"},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     //{ "-a", "--ascending", "Sort possible print in ascending order."
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
@@ -160,32 +167,37 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("list"))
     {
+        const std::regex rangePattern{ "(\\d+)-(\\d+)" }; // e.g. "16-32"
+        std::smatch rangeMatches;
+
         std::string listValue = opts.OptionValue("list");
-        std::pair<size_t, size_t> range; // Pokedex number, number - 1 for the index.
-        if (listValue.find("all") == 0 || listValue.empty())
+        PokedexRange range;
+        if (listValue == "all" || listValue.empty()) { range = maxRange; }
+        else if (listValue == "gen1") { range = gen1Range; }
+        else if (listValue == "gen2") { range = gen2Range; }
+        else if (listValue == "gen3") { range = gen3Range; }
+        else if (std::regex_match(listValue, rangeMatches, rangePattern))
         {
-            range.first = 1;
-            range.second = PoGoCmp::PokemonByNumber.size();
-        }
-        else if (listValue.find("gen1") == 0) /// @todo Generic genX
-        {
-            /// @todo generate values for these in PoGoCmpDb.h
-            range.first = 1;
-            range.second = 151;
-        }
-        else if (listValue.find("gen2") == 0)
-        {
-            range.first = 152;
-            range.second = 251;
-        }
-        else if (listValue.find("gen3") == 0)
-        {
-            range.first = 252;
-            range.second = 386;
+            try
+            {
+                range.first = std::stoul(rangeMatches[1]);
+                range.second = std::stoul(rangeMatches[2]);
+                if (range.first < 1)
+                    LogErrorAndExit("Range's min. cannot be less than 1");
+                if (range.first > range.second)
+                    LogErrorAndExit("Range's min. cannot be greater than max.");
+                if (range.second > maxRange.second)
+                    LogErrorAndExit("Range's max. cannot be than " + std::to_string(maxRange.second));
+            }
+            catch (const std::exception& e)
+            {
+                LogErrorAndExit(StringUtils::Concatenate(
+                    "Failed to parse list-command's value, '", listValue, "': ", e.what()));
+            }
         }
         else
         {
-            LogErrorAndExit(StringUtils::Concatenate("Invalid value for list ", listValue));
+            LogErrorAndExit(StringUtils::Concatenate("Invalid value for list, '", listValue, "'"));
         }
 
         std::string format = defaultFormat;
@@ -199,15 +211,17 @@ int main(int argc, char **argv)
         }
 
         size_t numResults = PoGoCmp::PokemonByNumber.size();
-        if (opts.HasOption("-r", "--results"))
+        auto resultsVal = opts.OptionValue("-r", "--results");
+        if (!resultsVal.empty())
         {
             try
             {
-                numResults = std::min((size_t)std::stoul(opts.OptionValue("-r", "--results")), numResults);
+                numResults = std::min((size_t)std::stoul(resultsVal), numResults);
             }
             catch(const std::exception& e)
             {
-                LogErrorAndExit(StringUtils::Concatenate("Failed to parse -r/--results value: ", e.what()));
+                LogErrorAndExit(StringUtils::Concatenate(
+                    "Failed to parse -r/--results value, '", resultsVal, "': ", e.what()));
             }
         }
 
