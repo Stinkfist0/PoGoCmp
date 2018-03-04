@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <sstream>
 #include <regex>
+#include <functional>
 
 const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
@@ -52,11 +53,14 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information."},
-    { "list", "", "List the first Pokemon in order by certain criteria: "
+    { "sort", "", "Sort the Pokemon by certain criteria: "
+        "'number' (default), 'attack', 'defense' or 'stamina'."
+    },
+    //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
+    { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
+    { "-i", "--include", "List the first Pokemon in order by certain criteria: "
         "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range, e.g.'16-32)'"},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
-    //{ "-a", "--ascending", "Sort possible print in ascending order."
-    { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
@@ -165,18 +169,50 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    if (opts.HasOption("list"))
+    if (opts.HasOption("sort"))
     {
+        const bool ascending = !opts.HasOption("-d", "--descending");
+        const std::string sortCriteria = opts.OptionValue("sort");
+        std::function<bool(const PoGoCmp::PokemonSpecie&, const PoGoCmp::PokemonSpecie&)> sortFunction;
+        if (sortCriteria.empty() || sortCriteria == "number")
+        {
+            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+                return ascending ? lhs.number < rhs.number : lhs.number > rhs.number;
+            };
+        }
+        else if (sortCriteria == "attack")
+        {
+            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+                return ascending ? lhs.baseAtk < rhs.baseAtk : lhs.baseAtk > rhs.baseAtk;
+            };
+        }
+        else if (sortCriteria == "defense")
+        {
+            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+                return ascending ? lhs.baseDef < rhs.baseDef : lhs.baseDef > rhs.baseDef;
+            };
+        }
+        else if (sortCriteria == "stamina")
+        {
+            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+                return ascending ? lhs.baseSta < rhs.baseSta : lhs.number > rhs.baseSta;
+            };
+        }
+        else
+        {
+            LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
+        }
+
         const std::regex rangePattern{ "(\\d+)-(\\d+)" }; // e.g. "16-32"
         std::smatch rangeMatches;
 
-        std::string listValue = opts.OptionValue("list");
+        std::string include = opts.OptionValue("-i", "--include");
         PokedexRange range;
-        if (listValue == "all" || listValue.empty()) { range = maxRange; }
-        else if (listValue == "gen1") { range = gen1Range; }
-        else if (listValue == "gen2") { range = gen2Range; }
-        else if (listValue == "gen3") { range = gen3Range; }
-        else if (std::regex_match(listValue, rangeMatches, rangePattern))
+        if (include == "all" || include.empty()) { range = maxRange; }
+        else if (include == "gen1") { range = gen1Range; }
+        else if (include == "gen2") { range = gen2Range; }
+        else if (include == "gen3") { range = gen3Range; }
+        else if (std::regex_match(include, rangeMatches, rangePattern))
         {
             try
             {
@@ -192,22 +228,12 @@ int main(int argc, char **argv)
             catch (const std::exception& e)
             {
                 LogErrorAndExit(StringUtils::Concatenate(
-                    "Failed to parse list-command's value, '", listValue, "': ", e.what()));
+                    "Failed to parse include's value, '", include, "': ", e.what()));
             }
         }
         else
         {
-            LogErrorAndExit(StringUtils::Concatenate("Invalid value for list, '", listValue, "'"));
-        }
-
-        std::string format = defaultFormat;
-        if (opts.HasOption("-f", "--format"))
-        {
-            format = opts.OptionValue("-f", "--format");
-            if (format.empty())
-            {
-                LogErrorAndExit("Value missing for -f/--format\n");
-            }
+            LogErrorAndExit(StringUtils::Concatenate("Invalid value for 'include', '", include, "'"));
         }
 
         size_t numResults = PoGoCmp::PokemonByNumber.size();
@@ -225,19 +251,29 @@ int main(int argc, char **argv)
             }
         }
 
-        auto begin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
-        auto matches = (size_t)std::distance(begin, PoGoCmp::PokemonByNumber.begin() + range.second);
+        std::cout << "Pokedex range " << range.first << "-" << range.second << "\n";
+        auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
+        auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first));
+        std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
 
-        std::cout << matches << " matches (showing ";
-        numResults = std::min(numResults, matches);
+        std::cout << data.size() << " matches (showing ";
+        numResults = std::min(numResults, dataSize);
         std::cout << numResults << " results):\n";
 
-        std::vector<PoGoCmp::PokemonSpecie> results;
-        results.insert(results.begin(), begin, begin + numResults);
+        std::sort(data.begin(), data.end(), sortFunction);
 
-        if (opts.HasOption("-d", "--descending"))
+        std::vector<PoGoCmp::PokemonSpecie> results;
+        results.insert(results.begin(), data.begin(), data.begin() + numResults);
+
+        // 4) print
+        std::string format = defaultFormat;
+        if (opts.HasOption("-f", "--format"))
         {
-            std::reverse(results.begin(), results.end());
+            format = opts.OptionValue("-f", "--format");
+            if (format.empty())
+            {
+                LogErrorAndExit("Value missing for -f/--format\n");
+            }
         }
 
         for(const auto& pkm : results)
