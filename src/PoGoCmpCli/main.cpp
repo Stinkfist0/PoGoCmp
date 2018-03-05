@@ -59,21 +59,27 @@ const std::vector<ProgramOption> programsOptions {
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-i", "--include", "List the first Pokemon in order by certain criteria: "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (Pokedex range, e.g.'16-32)'"},
+        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (inclusive Pokedex range, e.g.'16-32)'"},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria)"
     }
 };
 
 struct ProgamOptionMap
 {
-    using ConstIterator = std::vector<std::string>::const_iterator;
+    using ArgConstIterator = std::vector<std::string>::const_iterator;
+    /// (shortName, longName)
+    //using NamePair = std::pair <std::string, std::string>;
 
     /// The program invokation argument argv[0] is ignored.
-    ProgamOptionMap(int argc, char **argv) : args(argv + 1, argv + argc) {}
+    ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/) :
+        args(argv + 1, argv + argc)
+    {
+        //options
+    }
 
     bool HasOption(const std::string& shortName, const std::string& longName) const
     {
@@ -94,15 +100,33 @@ struct ProgamOptionMap
     std::string OptionValue(const std::string& name) const { return OptionValue(name, name); }
 
     /// @param valueIt Iterator to program option which should be considered a value.
-    bool IsValue(ConstIterator valueIt) const
+    bool IsValue(ArgConstIterator it) const
     {
-        return valueIt != args.end() && !ProgramOption::IsArg(*valueIt);
+        if (it == args.begin() || it == args.end()) return false;
+        auto prevIt = (it - 1);
+        return (prevIt == args.begin() || ProgramOption::IsArg(*prevIt)) && !ProgramOption::IsArg(*it);
     }
 
     std::vector<std::string> args;
+    //std::map<NamePair, std::string> opts;
 };
 
-std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt)
+void LogErrorAndExit(const std::string& msg)
+{
+    std::cerr << msg << "\n";
+    std::exit(EXIT_FAILURE);
+}
+
+uint16_t PropertyByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
+{
+    if (prop.empty() || prop == "number") { return pkm.number; }
+    else if (prop == "attack") { return pkm.baseAtk; }
+    else if (prop == "defense") { return pkm.baseDef; }
+    else if (prop == "stamina") { return pkm.baseSta; }
+    else { LogErrorAndExit("Invalid sorting criteria: '" + prop + "'."); return UINT16_MAX;  }
+}
+
+std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, const std::string& sortCriteria)
 {
     using namespace StringUtils;
     const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type));
@@ -118,6 +142,7 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt)
     fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
     fmt = std::regex_replace(fmt, std::regex("%T"), type);
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
+    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyByName(pkm, sortCriteria)));
     //str = std::regex_replace(str, std::regex("%%"), "%");
     return fmt;
 }
@@ -133,12 +158,6 @@ void PrintHelp()
     for (const auto& opt : programsOptions)
         if (opt.type == ProgramOption::Arg)
             std::cout << "  " << opt << "\n";
-}
-
-void LogErrorAndExit(const std::string& msg)
-{
-    std::cerr << msg << "\n";
-    std::exit(EXIT_FAILURE);
 }
 
 int main(int argc, char **argv)
@@ -169,39 +188,16 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
+    int ret = EXIT_FAILURE;
     if (opts.HasOption("sort"))
     {
         const bool ascending = !opts.HasOption("-d", "--descending");
         const std::string sortCriteria = opts.OptionValue("sort");
-        std::function<bool(const PoGoCmp::PokemonSpecie&, const PoGoCmp::PokemonSpecie&)> sortFunction;
-        if (sortCriteria.empty() || sortCriteria == "number")
-        {
-            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-                return ascending ? lhs.number < rhs.number : lhs.number > rhs.number;
-            };
-        }
-        else if (sortCriteria == "attack")
-        {
-            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-                return ascending ? lhs.baseAtk < rhs.baseAtk : lhs.baseAtk > rhs.baseAtk;
-            };
-        }
-        else if (sortCriteria == "defense")
-        {
-            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-                return ascending ? lhs.baseDef < rhs.baseDef : lhs.baseDef > rhs.baseDef;
-            };
-        }
-        else if (sortCriteria == "stamina")
-        {
-            sortFunction = [ascending](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-                return ascending ? lhs.baseSta < rhs.baseSta : lhs.number > rhs.baseSta;
-            };
-        }
-        else
-        {
-            LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
-        }
+        auto sortFunction = [ascending, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+            return ascending
+                ? PropertyByName(lhs, sortCriteria) < PropertyByName(rhs, sortCriteria)
+                : PropertyByName(lhs, sortCriteria) > PropertyByName(rhs, sortCriteria);
+        };
 
         const std::regex rangePattern{ "(\\d+)-(\\d+)" }; // e.g. "16-32"
         std::smatch rangeMatches;
@@ -253,7 +249,7 @@ int main(int argc, char **argv)
 
         std::cout << "Pokedex range " << range.first << "-" << range.second << "\n";
         auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
-        auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first));
+        auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
         std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
 
         std::cout << data.size() << " matches (showing ";
@@ -265,7 +261,6 @@ int main(int argc, char **argv)
         std::vector<PoGoCmp::PokemonSpecie> results;
         results.insert(results.begin(), data.begin(), data.begin() + numResults);
 
-        // 4) print
         std::string format = defaultFormat;
         if (opts.HasOption("-f", "--format"))
         {
@@ -278,10 +273,13 @@ int main(int argc, char **argv)
 
         for(const auto& pkm : results)
         {
-            std::cout << PokemonToString(pkm, format) << "\n";
+            std::cout << PokemonToString(pkm, format, sortCriteria) << "\n";
         }
+
+        ret = EXIT_SUCCESS;
     }
 
+    /// @todo move this to ProgramOptionMap
     for (auto it = opts.args.begin(); it != opts.args.end(); ++it)
     {
         if (std::count(knownArgs.begin(), knownArgs.end(), *it) == 0 && !opts.IsValue(it))
@@ -289,4 +287,6 @@ int main(int argc, char **argv)
             std::cerr << "Unknown parameter '" << *it << "'\n";
         }
     }
+
+    return ret;
 }
