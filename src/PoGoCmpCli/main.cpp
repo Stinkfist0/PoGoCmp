@@ -59,7 +59,7 @@ const std::vector<ProgramOption> programsOptions {
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-i", "--include", "List the first Pokemon in order by certain criteria: "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (inclusive Pokedex range, e.g.'16-32)'"},
+        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (inclusive Pokedex range, both numbers and names supported."},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
@@ -74,11 +74,14 @@ struct ProgamOptionMap
     /// (shortName, longName)
     //using NamePair = std::pair <std::string, std::string>;
 
-    /// The program invokation argument argv[0] is ignored.
+    /// @param argv The program invokation argument argv[0] is ignored.
     ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/) :
         args(argv + 1, argv + argc)
     {
-        //options
+        //for (const auto& opt : options)
+        //{
+        //    opts[std::make_pair(opt.shortName, opt.longName)] = OptionValue(opt.shortName, opt.longName);
+        //}
     }
 
     bool HasOption(const std::string& shortName, const std::string& longName) const
@@ -106,9 +109,10 @@ struct ProgamOptionMap
         auto prevIt = (it - 1);
         return (prevIt == args.begin() || ProgramOption::IsArg(*prevIt)) && !ProgramOption::IsArg(*it);
     }
-
+    /// The original arguments
     std::vector<std::string> args;
-    //std::map<NamePair, std::string> opts;
+    /// Program options and their values
+    std::map<NamePair, std::string> opts;
 };
 
 void LogErrorAndExit(const std::string& msg)
@@ -117,7 +121,7 @@ void LogErrorAndExit(const std::string& msg)
     std::exit(EXIT_FAILURE);
 }
 
-uint16_t PropertyByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
+uint16_t PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
     if (prop.empty() || prop == "number") { return pkm.number; }
     else if (prop == "attack") { return pkm.baseAtk; }
@@ -142,7 +146,7 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, 
     fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
     fmt = std::regex_replace(fmt, std::regex("%T"), type);
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
-    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyByName(pkm, sortCriteria)));
+    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(pkm, sortCriteria)));
     //str = std::regex_replace(str, std::regex("%%"), "%");
     return fmt;
 }
@@ -162,7 +166,7 @@ void PrintHelp()
 
 int main(int argc, char **argv)
 {
-    ProgamOptionMap opts(argc, argv);
+    ProgamOptionMap opts(argc, argv/*, programsOptions*/);
     if (opts.args.empty())
     {
         std::cerr << "Invalid usage.\n";
@@ -195,15 +199,15 @@ int main(int argc, char **argv)
         const std::string sortCriteria = opts.OptionValue("sort");
         auto sortFunction = [ascending, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
             return ascending
-                ? PropertyByName(lhs, sortCriteria) < PropertyByName(rhs, sortCriteria)
-                : PropertyByName(lhs, sortCriteria) > PropertyByName(rhs, sortCriteria);
+                ? PropertyValueByName(lhs, sortCriteria) < PropertyValueByName(rhs, sortCriteria)
+                : PropertyValueByName(lhs, sortCriteria) > PropertyValueByName(rhs, sortCriteria);
         };
 
-        const std::regex rangePattern{ "(\\d+)-(\\d+)" }; // e.g. "16-32"
+        const std::regex rangePattern{ "(\\w+)\\s?-\\s?(\\w+)" }; // e.g. "16-32", or "bulbasaur - ivysaur"
         std::smatch rangeMatches;
 
-        std::string include = opts.OptionValue("-i", "--include");
         PokedexRange range;
+        std::string include = opts.OptionValue("-i", "--include");
         if (include == "all" || include.empty()) { range = maxRange; }
         else if (include == "gen1") { range = gen1Range; }
         else if (include == "gen2") { range = gen2Range; }
@@ -212,8 +216,15 @@ int main(int argc, char **argv)
         {
             try
             {
-                range.first = std::stoul(rangeMatches[1]);
-                range.second = std::stoul(rangeMatches[2]);
+                auto rangeFirst = rangeMatches[1].str();
+                auto rangeSecond = rangeMatches[2].str();
+                range.first = StringUtils::IsNumber(rangeFirst)
+                    ? std::stoul(rangeFirst)
+                    : PoGoCmp::PokemonByName.at(rangeFirst)->number;
+                range.second = StringUtils::IsNumber(rangeSecond)
+                    ? std::stoul(rangeSecond)
+                    : PoGoCmp::PokemonByName.at(rangeSecond)->number;
+
                 if (range.first < 1)
                     LogErrorAndExit("Range's min. cannot be less than 1");
                 if (range.first > range.second)
