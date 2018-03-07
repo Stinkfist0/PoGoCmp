@@ -52,10 +52,7 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
-    { "-v", "--version", "Print version information."},
-    { "sort", "", "Sort the Pokemon by certain criteria: "
-        "'number' (default), 'attack', 'defense' or 'stamina'."
-    },
+    { "-v", "--version", "Print version information and exit."},
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-i", "--include", "List the first Pokemon in order by certain criteria: "
@@ -65,7 +62,12 @@ const std::vector<ProgramOption> programsOptions {
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria)"
-    }
+    },
+    // Commands
+    { "sort", "", "Sort the Pokemon by certain criteria: "
+        "'number' (default), 'attack', 'defense' or 'stamina'."
+    },
+    { "info", "", "Print information about the available data set." }
 };
 
 struct ProgamOptionMap
@@ -184,6 +186,15 @@ int main(int argc, char **argv)
     if (opts.HasOption("-v", "--version"))
     {
         std::cout << "PoGoCmpCli " << PoGoCmpVersionString() << "\n";
+        return EXIT_SUCCESS;
+    }
+
+    /// @todo Use info also to list type-effectiveness table etc.
+    if (opts.HasOption("info"))
+    {
+        std::cout << "Available Pokedex range " << std::to_string(maxRange.first)
+            << "-" << std::to_string(maxRange.second) << "\n";
+        return EXIT_SUCCESS;
     }
 
     if (opts.HasOption("-h", "--help"))
