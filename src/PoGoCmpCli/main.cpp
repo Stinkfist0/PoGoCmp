@@ -112,7 +112,7 @@ struct ProgamOptionMap
     /// The original arguments
     std::vector<std::string> args;
     /// Program options and their values
-    std::map<NamePair, std::string> opts;
+    //std::map<NamePair, std::string> opts;
 };
 
 void LogErrorAndExit(const std::string& msg)
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
             }
             catch (const std::exception& e)
             {
-                LogErrorAndExit(StringUtils::Concatenate(
+                LogErrorAndExit(StringUtils::Concat(
                     "Failed to parse include's value, '", include, "': ", e.what()));
             }
         }

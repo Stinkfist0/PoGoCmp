@@ -110,4 +110,7 @@ std::string Concatenate(Strings&&... strings) {
     return result;
 }
 
+template<typename... Strings>
+std::string Concat(Strings&&... strings) { return Concatenate(strings...); }
+
 } // namespace StringUtils
