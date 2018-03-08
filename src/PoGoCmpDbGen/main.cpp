@@ -3,9 +3,9 @@
 #endif
 
 #include "../PoGoCmp/PoGoCmpDb.h"
+#ifdef _MSC_VER
 // Disable couple MSVC's static analyser warnings coming from json.hpp
 // The C28020 in particular is probably a false positive.
-#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 6031 28020)
 #endif
@@ -23,6 +23,15 @@
 #include <iomanip>
 #include <set>
 #include <ctime>
+#include <map>
+
+std::string DateTimeOffsetString(std::time_t timestampS)
+{
+    std::stringstream ss;
+    auto tm = std::localtime(&timestampS);
+    ss << std::put_time(tm, "%F %T%z"); // ISO 8601 with offset
+    return ss.str();
+}
 
 int main(int argc, char **argv)
 {
@@ -51,6 +60,7 @@ int main(int argc, char **argv)
     using namespace PoGoCmp;
     std::map<uint16_t, PokemonSpecie> pokemonTable;
     std::set<std::string> pokemonTypes;
+    std::string dateTimeOffset;
 
     using namespace nlohmann;
     try
@@ -60,8 +70,7 @@ int main(int argc, char **argv)
 
         std::string timestampMs = jsonInput["timestampMs"];
         auto timestampS = (time_t)std::stoll(timestampMs.c_str()) / 1000;
-        auto tm = std::localtime(&timestampS);
-        auto dateTimeOffset = std::put_time(tm, "%F %T%z"); // ISO 8601 with offset
+        dateTimeOffset = DateTimeOffsetString(timestampS);
         std::cout << "Input file's timestamp " << dateTimeOffset << "\n";
 
         const std::regex idPattern{"V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "V0122_POKEMON_MR_MIME"
@@ -71,9 +80,15 @@ int main(int argc, char **argv)
         {
             std::string templateId = itemTemplate["templateId"];
             std::smatch matches;
-            if (std::regex_match(templateId, matches, idPattern))
+            if (std::regex_match(templateId, matches, typePattern))
             {
+                pokemonTypes.insert(matches[1]);
+            }
+            else if (std::regex_match(templateId, matches, idPattern))
+            {
+                assert(!pokemonTypes.empty());
                 // Defer writing the actual Pokemon data after the enums are written.
+                // TODO All types can be found in advance from the type-effectiveness information.
                 const auto& settings = itemTemplate["pokemonSettings"];
                 PokemonSpecie pkm{};
                 pkm.number = (uint16_t)std::stoi(matches[1]);
@@ -84,7 +99,6 @@ int main(int argc, char **argv)
                 // Primary type
                 std::string type = settings["type"];
                 std::regex_match(type, matches, typePattern);
-                pokemonTypes.insert(matches[1]);
                 pkm.type = StringToPokemonType(matches[1].str().c_str());
                 assert(pkm.type != PokemonType::NONE);
                 // Secondary type, if applicable
@@ -93,11 +107,38 @@ int main(int argc, char **argv)
                 {
                     std::string type2 = *it;
                     std::regex_match(type2, matches, typePattern);
-                    pokemonTypes.insert(matches[1]);
                     pkm.type2 = StringToPokemonType(matches[1].str().c_str());
+                    assert(pkm.type2 != PokemonType::NONE);
                 }
+                else
+                {
+                    assert(pkm.type2 == PokemonType::NONE);
+                }
+                // Rarity
+                auto rarity = settings.find("rarity"); // exists only for legendary and mythic Pokemon
+                /// @todo most of the baby Pokemon can be identified using buddySize but not all
+                //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
+                if (rarity != settings.end() && *rarity == "POKEMON_RARITY_LEGENDARY")
+                    pkm.rarity = PokemonRarity::NORMAL;
+                else if (rarity != settings.end() && *rarity == "POKEMON_RARITY_MYTHIC")
+                    pkm.rarity = PokemonRarity::MYTHIC;
+                //else if (buddySize != settings.end() && *buddySize == "BUDDY_BABY")
+                //    pkm.rarity = PokemonRarity::BABY;
+                else
+                    pkm.rarity = PokemonRarity::NORMAL;
 
-                pokemonTable[pkm.number] = pkm;
+                // TODO Need to take forms into consideration. For now only insert the main entry.
+                // Unown (29, same stats, 27 released currently)
+                // Castform (4, same stas, different moves)
+                // Deoxys (4, completely different)
+                if (pokemonTable.find(pkm.number) == pokemonTable.end())
+                {
+                    pokemonTable[pkm.number] = pkm;
+                }
+                else
+                {
+                    std::cout << pkm.number << " " << pkm.name << " ignored\n";
+                }
             }
         }
     }
@@ -107,10 +148,13 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    output
+        << "/** @file " << outputPath << "\n"
+        << "    @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.\n"
+        << "\n"
+        << "    Input file's timestamp " << dateTimeOffset << " */\n";
     output <<
-R"(/**
-    @file FILENAME
-    @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h. */
+R"(
 #pragma once
 
 #include <cstdint>
@@ -124,9 +168,27 @@ R"(/**
 namespace PoGoCmp {
 
 )";
+    /// @todo Could the following be deduced somehow?
+    /// Seasonal - e.g. Delibird?
+    /// Regional - all region-exclusive?
+    /// Unrelease/Unobtainable - Pokemon not yet released
+    /// Baby - Obtainable only from eggs.
+
+    output <<
+R"(enum class PokemonRarity : uint8_t {
+    /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
+    NORMAL,
+    /// Obtainable only from raids, cannot be placed in gyms.
+    LEGENDARY,
+    /// Obtainability unclear, no mythic Pokemon released yet.
+    MYTHIC
+};
+
+)";
 
     const std::string indent{"    "};
     const std::string typeNone{ "NONE" };
+
     output << "enum class PokemonType : uint8_t {\n";
     output << indent << typeNone << ",\n";
     for (auto type : pokemonTypes)
@@ -146,7 +208,8 @@ R"(struct PokemonSpecie
     uint16_t baseDef;
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokémon's specie name, uppercase with underscores
+    /// Pokémon's specie name, uppercase with underscores.
+    /// Used as an idenfiter for Pokemon (pokemonId) in the input file.
     /// There are only a handful of Pokémon with special character's in their names:
     /// - Mr. Mime -> MR_MIME
     /// - Farfetch'd -> FARFETCHD
@@ -162,15 +225,18 @@ R"(struct PokemonSpecie
     PokemonType type;
     /// Secondary type, if applicable.
     PokemonType type2;
+    /// Rarity type.
+    PokemonRarity rarity;
 };
 
 )";
 
-    auto writePokemon = [&](const PokemonSpecie& pkm)
+    auto writePokemon = [&output](const PokemonSpecie& pkm)
     {
         output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
             << ", " << std::quoted(pkm.name) << ", PokemonType::" << PokemonTypeToString(pkm.type)
-            << ", PokemonType::" << PokemonTypeToString((pkm.type2)) << " }";
+            << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", PokemonRarity::"
+            << PokemonRarityToString(pkm.rarity) << " }";
     };
 
     //auto writePokemonMap = [&](const auto& key, const PokemonSpecie& pkm)
@@ -218,10 +284,19 @@ static inline int StrCmpI(const char* str1, const char* str2)
     for (auto type : pokemonTypes)
         output << indent << "if (type == PokemonType::" << type << ") return " << std::quoted(type) << ";\n";
     output << indent << "return " << std::quoted(typeNone) << ";\n";
-    output << "}\n\n";
+    output << "}\n";
 
     output <<
-R"(struct StringLessThanI
+R"(
+/// Returns all-uppercase name
+static inline const char* PokemonRarityToString(PokemonRarity rarity)
+{
+    if (rarity == PokemonRarity::LEGENDARY) return "LEGENDARY";
+    if (rarity == PokemonRarity::MYTHIC) return "MYTHIC";
+    return "NORMAL";
+}
+
+struct StringLessThanI
 {
     bool operator()(const std::string& lhs, const std::string& rhs) const
     {
