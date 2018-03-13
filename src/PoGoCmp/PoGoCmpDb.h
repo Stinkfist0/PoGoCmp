@@ -1,4 +1,4 @@
-/** @file PoGoCmp.h
+/** @file PoGoCmpDb.cpp
     @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.
 
     Input file's timestamp 2018-02-10 02:24:00+0200 */
@@ -107,10 +107,10 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 26, 193, 165, 120, "RAICHU", PokemonType::ELECTRIC, PokemonType::NONE, PokemonRarity::NORMAL },
     { 27, 126, 145, 100, "SANDSHREW", PokemonType::GROUND, PokemonType::NONE, PokemonRarity::NORMAL },
     { 28, 182, 202, 150, "SANDSLASH", PokemonType::GROUND, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 29, 86, 94, 110, "NIDORAN", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
+    { 29, 86, 94, 110, "NIDORAN_FEMALE", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 30, 117, 126, 140, "NIDORINA", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 31, 180, 174, 180, "NIDOQUEEN", PokemonType::POISON, PokemonType::GROUND, PokemonRarity::NORMAL },
-    { 32, 105, 76, 92, "NIDORAN", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
+    { 32, 105, 76, 92, "NIDORAN_MALE", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 33, 137, 112, 122, "NIDORINO", PokemonType::POISON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 34, 204, 157, 162, "NIDOKING", PokemonType::POISON, PokemonType::GROUND, PokemonRarity::NORMAL },
     { 35, 107, 116, 140, "CLEFAIRY", PokemonType::FAIRY, PokemonType::NONE, PokemonRarity::NORMAL },
@@ -570,10 +570,10 @@ static const std::map<std::string, const PokemonSpecie*, StringLessThanI> Pokemo
     { "RAICHU", &PokemonByNumber[25] },
     { "SANDSHREW", &PokemonByNumber[26] },
     { "SANDSLASH", &PokemonByNumber[27] },
-    { "NIDORAN", &PokemonByNumber[28] },
+    { "NIDORAN_FEMALE", &PokemonByNumber[28] },
     { "NIDORINA", &PokemonByNumber[29] },
     { "NIDOQUEEN", &PokemonByNumber[30] },
-    { "NIDORAN", &PokemonByNumber[31] },
+    { "NIDORAN_MALE", &PokemonByNumber[31] },
     { "NIDORINO", &PokemonByNumber[32] },
     { "NIDOKING", &PokemonByNumber[33] },
     { "CLEFAIRY", &PokemonByNumber[34] },
@@ -929,5 +929,47 @@ static const std::map<std::string, const PokemonSpecie*, StringLessThanI> Pokemo
     { "JIRACHI", &PokemonByNumber[384] },
     { "DEOXYS", &PokemonByNumber[385] },
 };
+
+static const std::string MrMimeName{ "Mr. Mime" };
+static const std::string FarfetchdName{ "Farfetch'd" };
+static const std::string HoOhName{ "Ho-Oh" };
+static const std::string NidoranFemaleName{ "Nidoran Female" /** @todo u8"Nidoran♀"*/ };
+static const std::string NidoranMaleName{ "Nidoran Male" /** @todo u8"Nidoran♂"*/ };
+// - Mime Jr. -> Unknown at the moment, probably MIME_JR
+// - Flabébé -> Unknown at the moment, probably FLABEBE
+static const std::string EmptyString;
+
+/// Returns ID name corresponding the Pokémon's proper name.
+/// @todo Windows Unicode support
+static inline const std::string& PokemonNameToId(const std::string& name)
+{
+    // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
+    // PokemonByNumber[32-1]    // "NIDORAN_MALE"
+    // PokemonByNumber[83-1]    // "FARFETCHD"
+    // PokemonByNumber[122-1]   // "MR_MIME"
+    // PokemonByNumber[250-1]   // "HO_OH"
+    if (StrCmpI(name.c_str(), u8"Nidoran♀") == 0 || StrCmpI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
+    else if (StrCmpI(name.c_str(), u8"Nidoran♂") == 0 || StrCmpI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
+    else if (StrCmpI(name.c_str(), "Farfetch'd") == 0) { return PokemonByNumber[83-1].name; }
+    else if (StrCmpI(name.c_str(), "Mr. Mime") == 0 || StrCmpI(name.c_str(), "Mr Mime") == 0 /*UK English check just in case*/) { return PokemonByNumber[122-1].name; }
+    else if (StrCmpI(name.c_str(), "Ho-Oh") == 0 || StrCmpI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
+    else
+    {
+        auto it = PokemonByName.find(name);
+        return it != PokemonByName.end() ? it->second->name : EmptyString;
+    }
+}
+
+/// Returns proper name corresponding the Pokémon's ID name.
+/// @todo Nidoran♀ & Nidoran♂ not yet supported (returned as Nidoran Female and Nidoran Male)
+static inline const std::string& PokemonIdToName(const std::string& name)
+{
+    if (StrCmpI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
+    else if (StrCmpI(name.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
+    else if (StrCmpI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
+    else if (StrCmpI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
+    else if (StrCmpI(name.c_str(), "HO_OH") == 0) return HoOhName;
+    else return name;
+}
 
 }

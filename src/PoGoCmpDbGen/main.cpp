@@ -41,6 +41,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    /// @todo Windows Unicode
     std::string inputPath{ argv[1] };
     std::ifstream input{ inputPath };
     if (!input.is_open())
@@ -49,6 +50,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    /// @todo Windows Unicode
     std::string outputPath{ argv[2] };
     std::ofstream output{ outputPath };
     if (!output.is_open())
@@ -87,12 +89,11 @@ int main(int argc, char **argv)
             else if (std::regex_match(templateId, matches, idPattern))
             {
                 assert(!pokemonTypes.empty());
-                // Defer writing the actual Pokemon data after the enums are written.
-                // TODO All types can be found in advance from the type-effectiveness information.
+
                 const auto& settings = itemTemplate["pokemonSettings"];
                 PokemonSpecie pkm{};
                 pkm.number = (uint16_t)std::stoi(matches[1]);
-                pkm.name = matches[2];
+                pkm.name = settings["pokemonId"];//matches[2];
                 pkm.baseAtk = settings["stats"]["baseAttack"];
                 pkm.baseDef = settings["stats"]["baseDefense"];
                 pkm.baseSta = settings["stats"]["baseStamina"];
@@ -115,17 +116,23 @@ int main(int argc, char **argv)
                     assert(pkm.type2 == PokemonType::NONE);
                 }
                 // Rarity
-                auto rarity = settings.find("rarity"); // exists only for legendary and mythic Pokemon
+                it = settings.find("rarity"); // exists only for legendary and mythic Pokemon
                 /// @todo most of the baby Pokemon can be identified using buddySize but not all
                 //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
-                if (rarity != settings.end() && *rarity == "POKEMON_RARITY_LEGENDARY")
+                if (it != settings.end() && *it == "POKEMON_RARITY_LEGENDARY")
+                {
                     pkm.rarity = PokemonRarity::NORMAL;
-                else if (rarity != settings.end() && *rarity == "POKEMON_RARITY_MYTHIC")
+                }
+                else if (it != settings.end() && *it == "POKEMON_RARITY_MYTHIC")
+                {
                     pkm.rarity = PokemonRarity::MYTHIC;
+                }
                 //else if (buddySize != settings.end() && *buddySize == "BUDDY_BABY")
                 //    pkm.rarity = PokemonRarity::BABY;
                 else
-                    pkm.rarity = PokemonRarity::NORMAL;
+                {
+                    assert(pkm.rarity == PokemonRarity::NORMAL);
+                }
 
                 // TODO Need to take forms into consideration. For now only insert the main entry.
                 // Unown (29, same stats, 27 released currently)
@@ -148,11 +155,11 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    output
-        << "/** @file " << outputPath << "\n"
-        << "    @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.\n"
-        << "\n"
-        << "    Input file's timestamp " << dateTimeOffset << " */\n";
+    output  << "/** @file " << outputPath << "\n"
+            << "    @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.\n"
+            << "\n"
+            << "    Input file's timestamp " << dateTimeOffset << " */\n";
+
     output <<
 R"(
 #pragma once
@@ -173,6 +180,7 @@ namespace PoGoCmp {
     /// Regional - all region-exclusive?
     /// Unrelease/Unobtainable - Pokemon not yet released
     /// Baby - Obtainable only from eggs.
+    /// If not, maybe specify them manually.
 
     output <<
 R"(enum class PokemonRarity : uint8_t {
@@ -312,7 +320,52 @@ struct StringLessThanI
         //writePokemon(std::quoted(it.second.name), it.second);
         output << indent << "{ " << std::quoted(it.second.name) << ", &PokemonByNumber[" << it.first - 1 << "] },\n" ;
     }
-    output << "};\n\n";
+    output << "};";
+    output <<
+R"(
 
-    output << "}\n";
+static const std::string MrMimeName{ "Mr. Mime" };
+static const std::string FarfetchdName{ "Farfetch'd" };
+static const std::string HoOhName{ "Ho-Oh" };
+static const std::string NidoranFemaleName{ "Nidoran Female" /** @todo u8"Nidoran♀"*/ };
+static const std::string NidoranMaleName{ "Nidoran Male" /** @todo u8"Nidoran♂"*/ };
+// - Mime Jr. -> Unknown at the moment, probably MIME_JR
+// - Flabébé -> Unknown at the moment, probably FLABEBE
+static const std::string EmptyString;
+
+/// Returns ID name corresponding the Pokémon's proper name.
+/// @todo Windows Unicode support
+static inline const std::string& PokemonNameToId(const std::string& name)
+{
+    // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
+    // PokemonByNumber[32-1]    // "NIDORAN_MALE"
+    // PokemonByNumber[83-1]    // "FARFETCHD"
+    // PokemonByNumber[122-1]   // "MR_MIME"
+    // PokemonByNumber[250-1]   // "HO_OH"
+    if (StrCmpI(name.c_str(), u8"Nidoran♀") == 0 || StrCmpI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
+    else if (StrCmpI(name.c_str(), u8"Nidoran♂") == 0 || StrCmpI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
+    else if (StrCmpI(name.c_str(), "Farfetch'd") == 0) { return PokemonByNumber[83-1].name; }
+    else if (StrCmpI(name.c_str(), "Mr. Mime") == 0 || StrCmpI(name.c_str(), "Mr Mime") == 0 /*UK English check just in case*/) { return PokemonByNumber[122-1].name; }
+    else if (StrCmpI(name.c_str(), "Ho-Oh") == 0 || StrCmpI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
+    else
+    {
+        auto it = PokemonByName.find(name);
+        return it != PokemonByName.end() ? it->second->name : EmptyString;
+    }
+}
+
+/// Returns proper name corresponding the Pokémon's ID name.
+/// @todo Nidoran♀ & Nidoran♂ not yet supported (returned as Nidoran Female and Nidoran Male)
+static inline const std::string& PokemonIdToName(const std::string& name)
+{
+    if (StrCmpI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
+    else if (StrCmpI(name.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
+    else if (StrCmpI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
+    else if (StrCmpI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
+    else if (StrCmpI(name.c_str(), "HO_OH") == 0) return HoOhName;
+    else return name;
+}
+
+)";
+    output << "}\n"; // ~namespace PoGoCmp
 }
