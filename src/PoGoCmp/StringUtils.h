@@ -113,4 +113,12 @@ std::string Concatenate(Strings&&... strings) {
 template<typename... Strings>
 std::string Concat(Strings&&... strings) { return Concatenate(strings...); }
 
+// https://stackoverflow.com/a/25829233
+inline std::string& LTrim(std::string& s, const char* t = " \t\n\r\f\v") { s.erase(0, s.find_first_not_of(t)); return s; }
+inline std::string& RTrim(std::string& s, const char* t = " \t\n\r\f\v") { s.erase(s.find_last_not_of(t) + 1); return s; }
+inline std::string& Trim(std::string& s, const char* t = " \t\n\r\f\v") { return LTrim(RTrim(s, t), t); }
+inline std::string LTrimCopy(std::string s, const char* t = " \t\n\r\f\v") { return LTrim(s, t); }
+inline std::string RTrimCopy(std::string s, const char* t = " \t\n\r\f\v") { return RTrim(s, t); }
+inline std::string TrimCopy(std::string s, const char* t = " \t\n\r\f\v") { return Trim(s, t); }
+
 } // namespace StringUtils
