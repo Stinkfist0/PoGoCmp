@@ -12,4 +12,4 @@ build_script:
     cmake --build . --config "RelWithDebInfo"
 
 test_script:
-- cmd: ctest -C RelWithDebInfo
+- cmd: ctest --verbose -C RelWithDebInfo
