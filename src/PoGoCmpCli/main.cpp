@@ -10,7 +10,7 @@
 #include <regex>
 #include <functional>
 
-const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt" };
+const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\n" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
 /// @todo generate values for these in PoGoCmpDb.h
 using PokedexRange = std::pair<size_t, size_t>;
@@ -53,6 +53,7 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 const std::vector<ProgramOption> programsOptions {
     { "-h", "--help", "Print help." },
     { "-v", "--version", "Print version information and exit."},
+    //{ "", "--verbose", "Verbose log prints."},
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
     { "-i", "--include", "List the first Pokemon in order by certain criteria: "
@@ -61,7 +62,7 @@ const std::vector<ProgramOption> programsOptions {
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \n (new line), \t (tab)"
     },
     // Commands
     { "sort", "", "Sort the Pokemon by certain criteria: "
@@ -141,7 +142,7 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, 
     const auto types = StringUtils::Concatenate(type, (!type2.empty() ? "/" : ""), type2);
 
     fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(pkm.number));
-    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(pkm.name)); /**< @todo handle Ho-Oh and other special cases */
+    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(pkm.name)));
     fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(pkm.baseAtk));
     fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(pkm.baseDef));
     fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(pkm.baseSta));
@@ -149,7 +150,9 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, 
     fmt = std::regex_replace(fmt, std::regex("%T"), type);
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
     fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(pkm, sortCriteria)));
-    //str = std::regex_replace(str, std::regex("%%"), "%");
+    //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
+    fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
+    fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
 }
 
@@ -175,6 +178,8 @@ int main(int argc, char **argv)
         PrintHelp();
         return EXIT_FAILURE;
     }
+
+    //const bool verbose = opts.HasOption("--verbose");
 
     std::vector<std::string> knownArgs;
     for (const auto& opt : programsOptions)
@@ -214,7 +219,12 @@ int main(int argc, char **argv)
                 : PropertyValueByName(lhs, sortCriteria) > PropertyValueByName(rhs, sortCriteria);
         };
 
-        const std::regex rangePattern{ "(\\w+)\\s?-\\s?(\\w+)" }; // e.g. "16-32", or "bulbasaur - ivysaur"
+        /// @todo Unicode support
+        //const std::wregex rangePattern{
+        //    R"(([\w+\u2640\u2642\u00e9\u00c9)-.' ]+)- ?(\b[\w+\u2640\u2642\u00e9\u00c9)-.' ]+))"
+        //};
+        /// @todo trim in the regex instead of using trim() functions
+        const std::regex rangePattern{ R"(([\w-.' ]+)-([\w-.' ]+))" }; // e.g. "16-32", or "bulbasaur - ivysaur"
         std::smatch rangeMatches;
 
         PokedexRange range;
@@ -228,13 +238,17 @@ int main(int argc, char **argv)
             try
             {
                 auto rangeFirst = rangeMatches[1].str();
+                StringUtils::Trim(rangeFirst);
                 auto rangeSecond = rangeMatches[2].str();
+                StringUtils::Trim(rangeSecond);
+
                 range.first = StringUtils::IsNumber(rangeFirst)
                     ? std::stoul(rangeFirst)
-                    : PoGoCmp::PokemonByName.at(rangeFirst)->number;
+                    : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
+
                 range.second = StringUtils::IsNumber(rangeSecond)
                     ? std::stoul(rangeSecond)
-                    : PoGoCmp::PokemonByName.at(rangeSecond)->number;
+                    : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
 
                 if (range.first < 1)
                     LogErrorAndExit("Range's min. cannot be less than 1");
@@ -295,10 +309,16 @@ int main(int argc, char **argv)
 
         for(const auto& pkm : results)
         {
-            std::cout << PokemonToString(pkm, format, sortCriteria) << "\n";
+            std::cout << PokemonToString(pkm, format, sortCriteria);
         }
+        std::cout << "\n";
 
         ret = EXIT_SUCCESS;
+    }
+
+    if (ret != EXIT_SUCCESS)
+    {
+        std::cerr << "Error: no command given.\n";
     }
 
     /// @todo move this to ProgramOptionMap

@@ -334,6 +334,7 @@ static const std::string NidoranMaleName{ "Nidoran Male" /** @todo u8"Nidoran♂
 static const std::string EmptyString;
 
 /// Returns ID name corresponding the Pokémon's proper name.
+/// @note "Mr Mime" and "Ho Oh" accepted also.
 /// @todo Windows Unicode support
 static inline const std::string& PokemonNameToId(const std::string& name)
 {
@@ -345,7 +346,7 @@ static inline const std::string& PokemonNameToId(const std::string& name)
     if (StrCmpI(name.c_str(), u8"Nidoran♀") == 0 || StrCmpI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
     else if (StrCmpI(name.c_str(), u8"Nidoran♂") == 0 || StrCmpI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
     else if (StrCmpI(name.c_str(), "Farfetch'd") == 0) { return PokemonByNumber[83-1].name; }
-    else if (StrCmpI(name.c_str(), "Mr. Mime") == 0 || StrCmpI(name.c_str(), "Mr Mime") == 0 /*UK English check just in case*/) { return PokemonByNumber[122-1].name; }
+    else if (StrCmpI(name.c_str(), "Mr. Mime") == 0 || StrCmpI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].name; }
     else if (StrCmpI(name.c_str(), "Ho-Oh") == 0 || StrCmpI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
     else
     {
