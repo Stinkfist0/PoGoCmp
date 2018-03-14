@@ -9,8 +9,9 @@
 #include <sstream>
 #include <regex>
 #include <functional>
+#include <set>
 
-const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\n" };
+const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\\n" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
 /// @todo generate values for these in PoGoCmpDb.h
 using PokedexRange = std::pair<size_t, size_t>;
@@ -42,6 +43,7 @@ struct ProgramOption
     std::string longName;
     std::string help;
     ///std::string longHelp; // when -h <command> is used?
+    //bool multiple; // are multiple same options supported
 };
 
 std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
@@ -56,8 +58,8 @@ const std::vector<ProgramOption> programsOptions {
     //{ "", "--verbose", "Verbose log prints."},
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
-    { "-i", "--include", "List the first Pokemon in order by certain criteria: "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>-<Y>' (inclusive Pokedex range, both numbers and names supported."},
+    { "-i", "--include", "Specify Pokemon or range of Pokemon to be included (use multiple options to specify multiple individual Pokemon): "
+        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported."},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
@@ -73,7 +75,7 @@ const std::vector<ProgramOption> programsOptions {
 
 struct ProgamOptionMap
 {
-    using ArgConstIterator = std::vector<std::string>::const_iterator;
+    using StringVector = std::vector<std::string>;
     /// (shortName, longName)
     //using NamePair = std::pair <std::string, std::string>;
 
@@ -97,16 +99,36 @@ struct ProgamOptionMap
 
     std::string OptionValue(const std::string& shortName, const std::string& longName) const
     {
-        auto optIt = std::find_if(args.begin(), args.end(),
-            [&](const auto& arg) { return arg == shortName || arg == longName; });
+        auto optIt = std::find_if(args.begin(), args.end(), [&](const auto& arg) {
+            return arg == shortName || arg == longName;
+        });
         auto valueIt = optIt != args.end() ? optIt + 1 : args.end();
         return IsValue(valueIt) ? *valueIt : "";
     }
 
     std::string OptionValue(const std::string& name) const { return OptionValue(name, name); }
 
+    StringVector OptionValues(const std::string& shortName, const std::string& longName) const
+    {
+        StringVector ret;
+        auto it = args.begin();
+        while (it != args.end())
+        {
+            auto optIt = std::find_if(it, args.end(), [&](const auto& arg) {
+                return arg == shortName || arg == longName;
+            });
+            auto valueIt = optIt != args.end() ? optIt + 1 : args.end();
+            if (IsValue(valueIt))
+                ret.push_back(*valueIt);
+            it = valueIt;
+            if (it != args.end())
+                ++it;
+        }
+        return ret;
+    }
+
     /// @param valueIt Iterator to program option which should be considered a value.
-    bool IsValue(ArgConstIterator it) const
+    bool IsValue(StringVector::const_iterator it) const
     {
         if (it == args.begin() || it == args.end()) return false;
         auto prevIt = (it - 1);
@@ -139,7 +161,7 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, 
     const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type));
     const auto type2 = pkm.type2 == PoGoCmp::PokemonType::NONE
         ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type2));
-    const auto types = StringUtils::Concatenate(type, (!type2.empty() ? "/" : ""), type2);
+    const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
 
     fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(pkm.number));
     fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(pkm.name)));
@@ -219,53 +241,67 @@ int main(int argc, char **argv)
                 : PropertyValueByName(lhs, sortCriteria) > PropertyValueByName(rhs, sortCriteria);
         };
 
+        using namespace StringUtils;
+
         /// @todo Unicode support
         //const std::wregex rangePattern{
         //    R"(([\w+\u2640\u2642\u00e9\u00c9)-.' ]+)- ?(\b[\w+\u2640\u2642\u00e9\u00c9)-.' ]+))"
         //};
         /// @todo trim in the regex instead of using trim() functions
-        const std::regex rangePattern{ R"(([\w-.' ]+)-([\w-.' ]+))" }; // e.g. "16-32", or "bulbasaur - ivysaur"
+        const std::regex rangePattern{ R"(([\w-.' ]+)(,)?([\w-.' ]+)?)" }; // e.g. "16,32", or "bulbasaur,ivysaur", or "250"
         std::smatch rangeMatches;
 
-        PokedexRange range;
-        std::string include = opts.OptionValue("-i", "--include");
-        if (include == "all" || include.empty()) { range = maxRange; }
-        else if (include == "gen1") { range = gen1Range; }
-        else if (include == "gen2") { range = gen2Range; }
-        else if (include == "gen3") { range = gen3Range; }
-        else if (std::regex_match(include, rangeMatches, rangePattern))
+        std::set<PokedexRange> ranges;
+        for (const auto& include : opts.OptionValues("-i", "--include"))
         {
-            try
+            PokedexRange range;
+            if (include == "all" || include.empty()) { range = maxRange; }
+            else if (include == "gen1") { range = gen1Range; }
+            else if (include == "gen2") { range = gen2Range; }
+            else if (include == "gen3") { range = gen3Range; }
+            else if (std::regex_match(include, rangeMatches, rangePattern))
             {
-                auto rangeFirst = rangeMatches[1].str();
-                StringUtils::Trim(rangeFirst);
-                auto rangeSecond = rangeMatches[2].str();
-                StringUtils::Trim(rangeSecond);
+                try
+                {
+                    auto rangeFirst = rangeMatches[1].str();
+                    Trim(rangeFirst);
+                    //auto type = rangeMatches[2].str();
+                    auto rangeSecond = rangeMatches.size() > 2 ? rangeMatches[3].str() : "";
+                    Trim(rangeSecond);
 
-                range.first = StringUtils::IsNumber(rangeFirst)
-                    ? std::stoul(rangeFirst)
-                    : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
+                    range.first = IsNumber(rangeFirst) ? std::stoul(rangeFirst)
+                        : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
 
-                range.second = StringUtils::IsNumber(rangeSecond)
-                    ? std::stoul(rangeSecond)
-                    : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
+                    range.second = rangeSecond.empty() ? range.first
+                        : IsNumber(rangeSecond) ? std::stoul(rangeSecond)
+                        : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
 
-                if (range.first < 1)
-                    LogErrorAndExit("Range's min. cannot be less than 1");
-                if (range.first > range.second)
-                    LogErrorAndExit("Range's min. cannot be greater than max.");
-                if (range.second > maxRange.second)
-                    LogErrorAndExit("Range's max. cannot be than " + std::to_string(maxRange.second));
+                    if (range.first < 1)
+                    {
+                        LogErrorAndExit("Range's min. (" + std::to_string(range.first) + ") cannot be less than 1");
+                    }
+                    if (range.first > range.second)
+                    {
+                        LogErrorAndExit("Range's min. (" + std::to_string(range.first) + ") cannot be greater than max. ("
+                            + std::to_string(range.second) + ")");
+                    }
+                    if (range.second > maxRange.second)
+                    {
+                        LogErrorAndExit("Range's max. cannot be than " + std::to_string(maxRange.second));
+                    }
+
+                    ranges.insert(range);
+                }
+                catch (const std::exception& e)
+                {
+                    LogErrorAndExit(Concat(
+                        "Failed to parse include's value, '", include, "': ", e.what()));
+                }
             }
-            catch (const std::exception& e)
+            else
             {
-                LogErrorAndExit(StringUtils::Concat(
-                    "Failed to parse include's value, '", include, "': ", e.what()));
+                LogErrorAndExit(Concat("Invalid value for 'include', '", include, "'"));
             }
-        }
-        else
-        {
-            LogErrorAndExit(StringUtils::Concatenate("Invalid value for 'include', '", include, "'"));
         }
 
         size_t numResults = PoGoCmp::PokemonByNumber.size();
@@ -278,24 +314,9 @@ int main(int argc, char **argv)
             }
             catch(const std::exception& e)
             {
-                LogErrorAndExit(StringUtils::Concatenate(
-                    "Failed to parse -r/--results value, '", resultsVal, "': ", e.what()));
+                LogErrorAndExit(Concat("Failed to parse -r/--results value, '", resultsVal, "': ", e.what()));
             }
         }
-
-        std::cout << "Pokedex range " << range.first << "-" << range.second << "\n";
-        auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
-        auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
-        std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
-
-        std::cout << data.size() << " matches (showing ";
-        numResults = std::min(numResults, dataSize);
-        std::cout << numResults << " results):\n";
-
-        std::sort(data.begin(), data.end(), sortFunction);
-
-        std::vector<PoGoCmp::PokemonSpecie> results;
-        results.insert(results.begin(), data.begin(), data.begin() + numResults);
 
         std::string format = defaultFormat;
         if (opts.HasOption("-f", "--format"))
@@ -307,11 +328,29 @@ int main(int argc, char **argv)
             }
         }
 
-        for(const auto& pkm : results)
+
+        for (const auto& range : ranges)
         {
-            std::cout << PokemonToString(pkm, format, sortCriteria);
+            std::cout << "Pokedex range " << range.first << "-" << range.second << ":\n";
+            auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
+            auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
+            std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
+
+            std::cout << data.size() << " matches (showing ";
+            numResults = std::min(numResults, dataSize);
+            std::cout << numResults << " results):\n";
+
+            std::sort(data.begin(), data.end(), sortFunction);
+
+            std::vector<PoGoCmp::PokemonSpecie> results;
+            results.insert(results.begin(), data.begin(), data.begin() + numResults);
+
+            for (const auto& pkm : results)
+            {
+                std::cout << PokemonToString(pkm, format, sortCriteria);
+            }
         }
-        std::cout << "\n";
+        //std::cout << "\n";
 
         ret = EXIT_SUCCESS;
     }
