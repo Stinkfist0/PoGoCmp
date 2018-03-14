@@ -252,10 +252,14 @@ int main(int argc, char **argv)
         std::smatch rangeMatches;
 
         std::set<PokedexRange> ranges;
-        for (const auto& include : opts.OptionValues("-i", "--include"))
+        auto includes = opts.OptionValues("-i", "--include");
+        if (includes.empty())
+            includes.push_back("all");
+
+        for (const auto& include : includes)
         {
             PokedexRange range;
-            if (include == "all" || include.empty()) { range = maxRange; }
+            if (include == "all") { range = maxRange; }
             else if (include == "gen1") { range = gen1Range; }
             else if (include == "gen2") { range = gen2Range; }
             else if (include == "gen3") { range = gen3Range; }
@@ -289,8 +293,6 @@ int main(int argc, char **argv)
                     {
                         LogErrorAndExit("Range's max. cannot be than " + std::to_string(maxRange.second));
                     }
-
-                    ranges.insert(range);
                 }
                 catch (const std::exception& e)
                 {
@@ -302,6 +304,8 @@ int main(int argc, char **argv)
             {
                 LogErrorAndExit(Concat("Invalid value for 'include', '", include, "'"));
             }
+
+            ranges.insert(range);
         }
 
         size_t numResults = PoGoCmp::PokemonByNumber.size();
