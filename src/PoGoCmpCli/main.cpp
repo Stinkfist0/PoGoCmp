@@ -1,6 +1,7 @@
-#include "../PoGoCmp/PoGoCmp.h"
+﻿#include "../PoGoCmp/PoGoCmp.h"
 #include "../PoGoCmp/PoGoCmpDb.h"
 #include "../PoGoCmp/StringUtils.h"
+#include "../PoGoCmp/Utf8.h"
 
 #include <iostream>
 #include <string>
@@ -79,9 +80,10 @@ struct ProgamOptionMap
     /// (shortName, longName)
     //using NamePair = std::pair <std::string, std::string>;
 
+    ProgamOptionMap(const StringVector& args) : args(args) {}
     /// @param argv The program invokation argument argv[0] is ignored.
-    ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/) :
-        args(argv + 1, argv + argc)
+    ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/)
+        : ProgamOptionMap({ argv + 1, argv + argc })
     {
         //for (const auto& opt : options)
         //{
@@ -193,7 +195,8 @@ void PrintHelp()
 
 int main(int argc, char **argv)
 {
-    ProgamOptionMap opts(argc, argv/*, programsOptions*/);
+    std::vector<Utf8::String> args = Utf8::GetCommandLineUtf8(argc, argv);
+    ProgamOptionMap opts{ {args.begin() + 1, args.end()} };
     if (opts.args.empty())
     {
         std::cerr << "Invalid usage.\n";
@@ -216,7 +219,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    /// @todo Use info also to list type-effectiveness table etc.
+    /// @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
         std::cout << "Available Pokedex range " << std::to_string(maxRange.first)

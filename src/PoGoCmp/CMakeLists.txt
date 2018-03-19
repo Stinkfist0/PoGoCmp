@@ -1,5 +1,5 @@
-set(headers PoGoCmp.h PoGoCmpDb.h StringUtils.h)
-set(sources PoGoCmp.cpp)
+set(headers PoGoCmp.h PoGoCmpDb.h StringUtils.h Utf8.h MinimalWin32.h)
+set(sources PoGoCmp.cpp Utf8.cpp)
 
 if (BUILD_SHARED_LIBS)
     add_definitions(-DPOGOCMP_EXPORTS)

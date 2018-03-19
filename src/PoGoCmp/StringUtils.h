@@ -10,7 +10,7 @@
 namespace StringUtils
 {
 
-void SnakeCaseToTitleCase(std::string &str)
+static inline void SnakeCaseToTitleCase(std::string &str)
 {
     if (str.empty()) return;
     const auto& cLocale = std::locale::classic();
@@ -24,7 +24,7 @@ void SnakeCaseToTitleCase(std::string &str)
     }
 }
 
-std::string SnakeCaseToTitleCase(const std::string &str)
+static inline std::string SnakeCaseToTitleCase(const std::string &str)
 {
     if (str.empty()) return str;
     auto copy = str;
@@ -32,7 +32,7 @@ std::string SnakeCaseToTitleCase(const std::string &str)
     return copy;
 }
 
-bool IsNumber(const std::string& str)
+static inline bool IsNumber(const std::string& str)
 {
     char* p;
     (void)std::strtod(str.c_str(), &p);

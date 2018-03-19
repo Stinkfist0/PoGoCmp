@@ -22,6 +22,11 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic -std=c++14)
 endif()
 
+if (WIN32)
+    # Enforce Unicode for Win32 and CRT APIs.
+    add_definitions(-DUNICODE -D_UNICODE)
+endif()
+
 if (BUILD_SHARED_LIBS)
     add_definitions(-DPOGOCMP_SHARED_BUILD)
 endif()

@@ -164,6 +164,8 @@ int main(int argc, char **argv)
 R"(
 #pragma once
 
+#include "Utf8.h"
+
 #include <cstdint>
 #include <string>
 #include <array>
@@ -183,7 +185,8 @@ namespace PoGoCmp {
     /// If not, maybe specify them manually.
 
     output <<
-R"(enum class PokemonRarity : uint8_t {
+R"(enum class PokemonRarity : uint8_t
+{
     /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
     NORMAL,
     /// Obtainable only from raids, cannot be placed in gyms.
@@ -197,7 +200,7 @@ R"(enum class PokemonRarity : uint8_t {
     const std::string indent{"    "};
     const std::string typeNone{ "NONE" };
 
-    output << "enum class PokemonType : uint8_t {\n";
+    output << "enum class PokemonType : uint8_t\n{\n";
     output << indent << typeNone << ",\n";
     for (auto type : pokemonTypes)
     {
@@ -218,13 +221,7 @@ R"(struct PokemonSpecie
     uint16_t baseSta;
     /// Pokémon's specie name, uppercase with underscores.
     /// Used as an idenfiter for Pokemon (pokemonId) in the input file.
-    /// There are only a handful of Pokémon with special character's in their names:
-    /// - Mr. Mime -> MR_MIME
-    /// - Farfetch'd -> FARFETCHD
-    /// - Ho-Oh -> HO_OH
-    /// - Mime Jr. -> Unknown at the moment, probably MIME_JR
-    /// - Flabébé -> Unknown at the moment, probably FLABEBE
-    /// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+    /// Use PokemonIdToName() to translate this into a proper name.
     /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
     /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
     /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
@@ -267,7 +264,7 @@ R"(struct PokemonSpecie
 
     output <<
 R"(/// Case-insensitive string comparison.
-static inline int StrCmpI(const char* str1, const char* str2)
+static inline int CompareI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
     return _stricmp(str1, str2);
@@ -282,7 +279,7 @@ static inline int StrCmpI(const char* str1, const char* str2)
     output << "static inline PokemonType StringToPokemonType(const char* str)\n";
     output << "{\n";
     for (auto type : pokemonTypes)
-        output << indent << "if (StrCmpI(str, " << std::quoted(type) << ") == 0) return PokemonType::" << type << ";\n";
+        output << indent << "if (CompareI(str, " << std::quoted(type) << ") == 0) return PokemonType::" << type << ";\n";
     output << indent << "return PokemonType::NONE;\n";
     output << "}\n\n";
 
@@ -308,7 +305,7 @@ struct StringLessThanI
 {
     bool operator()(const std::string& lhs, const std::string& rhs) const
     {
-        return StrCmpI(lhs.c_str(), rhs.c_str()) < 0;
+        return CompareI(lhs.c_str(), rhs.c_str()) < 0;
     }
 };
 
@@ -324,30 +321,30 @@ struct StringLessThanI
     output <<
 R"(
 
+// Pokémon whose names don't directly match the ID name.
 static const std::string MrMimeName{ "Mr. Mime" };
 static const std::string FarfetchdName{ "Farfetch'd" };
 static const std::string HoOhName{ "Ho-Oh" };
-static const std::string NidoranFemaleName{ "Nidoran Female" /** @todo u8"Nidoran♀"*/ };
-static const std::string NidoranMaleName{ "Nidoran Male" /** @todo u8"Nidoran♂"*/ };
+static const Utf8::String NidoranFemaleName{ u8"Nidoran♀" };
+static const Utf8::String NidoranMaleName{ u8"Nidoran♂" };
 // - Mime Jr. -> Unknown at the moment, probably MIME_JR
 // - Flabébé -> Unknown at the moment, probably FLABEBE
 static const std::string EmptyString;
 
-/// Returns ID name corresponding the Pokémon's proper name.
-/// @note "Mr Mime" and "Ho Oh" accepted also.
-/// @todo Windows Unicode support
-static inline const std::string& PokemonNameToId(const std::string& name)
+/// Returns ID name corresponding the Pokémon's proper name, case-insensitive.
+/// @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
+static inline const std::string& PokemonNameToId(const Utf8::String& name)
 {
     // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
     // PokemonByNumber[32-1]    // "NIDORAN_MALE"
     // PokemonByNumber[83-1]    // "FARFETCHD"
     // PokemonByNumber[122-1]   // "MR_MIME"
     // PokemonByNumber[250-1]   // "HO_OH"
-    if (StrCmpI(name.c_str(), u8"Nidoran♀") == 0 || StrCmpI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
-    else if (StrCmpI(name.c_str(), u8"Nidoran♂") == 0 || StrCmpI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
-    else if (StrCmpI(name.c_str(), "Farfetch'd") == 0) { return PokemonByNumber[83-1].name; }
-    else if (StrCmpI(name.c_str(), "Mr. Mime") == 0 || StrCmpI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].name; }
-    else if (StrCmpI(name.c_str(), "Ho-Oh") == 0 || StrCmpI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
+    if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
+    else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
+    else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0) { return PokemonByNumber[83-1].name; }
+    else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].name; }
+    else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
     else
     {
         auto it = PokemonByName.find(name);
@@ -356,14 +353,20 @@ static inline const std::string& PokemonNameToId(const std::string& name)
 }
 
 /// Returns proper name corresponding the Pokémon's ID name.
-/// @todo Nidoran♀ & Nidoran♂ not yet supported (returned as Nidoran Female and Nidoran Male)
-static inline const std::string& PokemonIdToName(const std::string& name)
+/// There are only a handful of Pokémon with special character's in their names:
+/// - Mr. Mime -> MR_MIME
+/// - Farfetch'd -> FARFETCHD
+/// - Ho-Oh -> HO_OH
+/// - Mime Jr. -> Unknown at the moment, probably MIME_JR
+/// - Flabébé -> Unknown at the moment, probably FLABEBE
+/// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+static inline const Utf8::String& PokemonIdToName(const std::string& name)
 {
-    if (StrCmpI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
-    else if (StrCmpI(name.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
-    else if (StrCmpI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
-    else if (StrCmpI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
-    else if (StrCmpI(name.c_str(), "HO_OH") == 0) return HoOhName;
+    if (CompareI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
+    else if (CompareI(name.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
+    else if (CompareI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
+    else if (CompareI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
+    else if (CompareI(name.c_str(), "HO_OH") == 0) return HoOhName;
     else return name;
 }
 
