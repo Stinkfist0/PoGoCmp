@@ -5,6 +5,7 @@
 #include "Utf8.h"
 
 #ifdef WIN32
+#include <cwchar>
 #include <io.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -63,54 +64,68 @@ std::wstring ToUtf16(const String& str)
 #endif
 }
 
-int EnableUnicodeStreamOutput()
+int EnableUnicodeStdIo()
 {
 #ifdef WIN32
-    int res = _setmode(_fileno(stdout), _O_U16TEXT);
-    if (res == -1) return res;
-    return _setmode(_fileno(stderr), _O_U16TEXT);
+    int res = -1;
+    for (auto stream : { stdout, stderr, stdin })
+    {
+        res = _setmode(_fileno(stream), _O_U16TEXT);
+        if (res == -1) return res;
+    }
+    return res;
 #else
+    /// @todo Should do the trick?  Test!
     std::locale::global(std::locale(""));
+    return 0;
 #endif
 }
 
-void Print(const String& str, bool error)
+void Print(const String& str, OutputStream stream)
 {
-#ifdef  WIN32
-    HANDLE handle = GetStdHandle(error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
-    if (handle == INVALID_HANDLE_VALUE)
-        return;
-    const auto wstr = ToUtf16(str);
-    DWORD charsWritten;
-    WriteConsole(handle, wstr.c_str(), wstr.size(), &charsWritten, nullptr);
-#else
-    std::fprintf(error ? stderr : stdout, "%s", str.c_str());
-#endif
-}
-
-void PrintLine(const String& str, bool error)
-{
-    Print(str + "\n", error);
-}
-
-std::vector<String> GetCommandLineUtf8(int argc, char** argv)
-{
-    std::vector<String> args;
+    auto out = stream == OutputStream::Err ? stderr : stdout;
 #ifdef WIN32
+    const auto wstr = ToUtf16(str);
+    if (!_isatty(_fileno(out))) // take output redirection into account
+    {
+        std::fwprintf(out, L"%s", wstr.c_str());
+    }
+    else
+    {
+        HANDLE handle = GetStdHandle(stream == OutputStream::Err ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
+        if (handle == INVALID_HANDLE_VALUE)
+            return;
+        DWORD charsWritten;
+        WriteConsole(handle, wstr.c_str(), wstr.size(), &charsWritten, nullptr);
+    }
+#else
+    std::fprintf(out, "%s", str.c_str());
+#endif
+}
+
+void PrintLine(const String& str, OutputStream stream)
+{
+    Print(str + "\n", stream);
+}
+
+std::vector<String> ParseArguments(int argc, char** argv, bool skipFirst)
+{
+#ifdef WIN32
+    std::vector<String> args;
     (void)argv;
     PWSTR *argvw = CommandLineToArgvW(GetCommandLine(), &argc);
-    for (int i = 0; i < argc; ++i)
+    for (int i = skipFirst ? 1 : 0; i < argc; ++i)
     {
         args.push_back(FromUtf16(std::wstring{ argvw[i] }));
     }
     LocalFree(argvw);
-#else
-    args.assign(argv, argv + argc);
-#endif
     return args;
+#else
+    return { argv + (skipFirst ? 1 : 0), argv + argc };
+#endif
 }
 
-int CompareI(Utf8::ByteArray str1, Utf8::ByteArray str2)
+int CompareI(ByteArray str1, ByteArray str2)
 {
 #ifdef _WIN32
     const auto wstr1 = ToUtf16(str1);

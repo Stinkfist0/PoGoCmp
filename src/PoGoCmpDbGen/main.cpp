@@ -35,27 +35,26 @@ std::string DateTimeOffsetString(std::time_t timestampS)
 
 int main(int argc, char **argv)
 {
-    if (argc < 3)
+    auto args = Utf8::ParseArguments(argc, argv);
+    if (args.size() != 2)
     {
-        std::cerr << "Output path missing. Usage: PoGoCmpDbGen <inputJsonPath> <outputhPath>\n";
+        std::cerr << "Exactly two arguments required. Usage: PoGoCmpDbGen <inputJsonPath> <outputhPath>\n";
         return EXIT_FAILURE;
     }
 
-    /// @todo Windows Unicode
-    std::string inputPath{ argv[1] };
-    std::ifstream input{ inputPath };
+    const auto& inputPath = args[0];
+    Utf8::ifstream input{ inputPath };
     if (!input.is_open())
     {
-        std::cerr << "Failed to open " << inputPath << "\n";
+        Utf8::PrintLine("Failed to open " + inputPath, Utf8::OutputStream::Err);
         return EXIT_FAILURE;
     }
 
-    /// @todo Windows Unicode
-    std::string outputPath{ argv[2] };
-    std::ofstream output{ outputPath };
+    const auto& outputPath = args[1];
+    Utf8::ofstream output{ outputPath };
     if (!output.is_open())
     {
-        std::cerr << "Failed to open " << outputPath << "\n";
+        Utf8::PrintLine("Failed to open " + outputPath, Utf8::OutputStream::Err);
         return EXIT_FAILURE;
     }
 

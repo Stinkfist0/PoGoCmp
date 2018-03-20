@@ -65,7 +65,7 @@ const std::vector<ProgramOption> programsOptions {
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \n (new line), \t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \\n (new line), \\t (tab)"
     },
     // Commands
     { "sort", "", "Sort the Pokemon by certain criteria: "
@@ -183,23 +183,25 @@ std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, 
 /// @todo indentation
 void PrintHelp()
 {
-    std::cout << "Supported commands:\n";
+    std::stringstream ss;
+    ss << "Supported commands:\n";
     for (const auto& opt : programsOptions)
         if (opt.type == ProgramOption::Cmd)
-            std::cout << "  " << opt << "\n";
-    std::cout << "Supported arguments:\n";
+            ss << "  " << opt << "\n";
+    ss << "Supported arguments:\n";
     for (const auto& opt : programsOptions)
         if (opt.type == ProgramOption::Arg)
-            std::cout << "  " << opt << "\n";
+            ss << "  " << opt << "\n";
+    Utf8::PrintLine(ss.str());
 }
 
 int main(int argc, char **argv)
 {
-    std::vector<Utf8::String> args = Utf8::GetCommandLineUtf8(argc, argv);
-    ProgamOptionMap opts{ {args.begin() + 1, args.end()} };
+    ProgamOptionMap opts{ Utf8::ParseArguments(argc, argv) };
     if (opts.args.empty())
     {
         std::cerr << "Invalid usage.\n";
+        //Utf8::PrintLine("Invalid usage.", Utf8::OutputStream::Err);
         PrintHelp();
         return EXIT_FAILURE;
     }

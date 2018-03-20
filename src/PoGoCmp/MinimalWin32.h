@@ -1,8 +1,9 @@
 /**
     @file   MinimalWin32.h
-    @brief  Utility file to include minimal Win32 API.
-    
-            Include this file and then #undef definitions as needed. */
+    @brief  Utility file to help including minimal Win32 API.
+
+            Include this file and then #undef definitions as needed
+            before including windows.h. */
 
 // no include guard on purpose
 
