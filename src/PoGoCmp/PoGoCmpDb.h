@@ -934,7 +934,7 @@ static const std::string FarfetchdName{ "Farfetch'd" };
 static const std::string HoOhName{ "Ho-Oh" };
 // Cannot use the actual ♀ & ♂ symbols in the literals as those would get corrupted
 // on MSVC unless the file would be saved as UTF-16 LE BOM which I don't want to do.
-static const Utf8::String NidoranFemaleName{ u8"Nidoran\u2642" };
+static const Utf8::String NidoranFemaleName{ u8"Nidoran\u2640" };
 static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
 // - Mime Jr. -> Unknown at the moment, probably MIME_JR
 // - Flabébé -> Unknown at the moment, probably FLABEBE
