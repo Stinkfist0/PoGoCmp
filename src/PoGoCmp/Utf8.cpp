@@ -86,17 +86,18 @@ void Print(const String& str, OutputStream stream)
     auto out = stream == OutputStream::Err ? stderr : stdout;
 #ifdef WIN32
     const auto wstr = ToUtf16(str);
-    if (!_isatty(_fileno(out))) // take output redirection into account
-    {
-        std::fwprintf(out, L"%s", wstr.c_str());
-    }
-    else
+    // Note: could use GetConsoleMode(), it should give more reliable results, especially for stdin.
+    if (_isatty(_fileno(out)) != 0) // no output redirection
     {
         HANDLE handle = GetStdHandle(stream == OutputStream::Err ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
         if (handle == INVALID_HANDLE_VALUE)
             return;
         DWORD charsWritten;
         WriteConsole(handle, wstr.c_str(), wstr.size(), &charsWritten, nullptr);
+    }
+    else // Output redirected
+    {
+        std::fwprintf(out, L"%s", wstr.c_str()); // Doesn't work perfectly (limited to UCS-2?).
     }
 #else
     std::fprintf(out, "%s", str.c_str());
