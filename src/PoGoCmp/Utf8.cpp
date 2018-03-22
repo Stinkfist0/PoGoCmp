@@ -19,14 +19,20 @@
 #pragma comment(lib, "shlwapi.lib")
 #else
 #include <strings.h> // strcasecmp()
+#endif
 #include <locale>
 #include <codecvt>
-#endif
 
 namespace Utf8
 {
 
-String FromUtf16(const std::wstring& wstr)
+#ifdef WIN32
+using WStringFacet = std::codecvt_utf8_utf16<wchar_t>;
+#else
+using WStringFacet = std::codecvt_utf8<wchar_t>;
+#endif
+
+String FromWString(const std::wstring& wstr)
 {
 #ifdef WIN32
     std::string utf8;
@@ -39,13 +45,13 @@ String FromUtf16(const std::wstring& wstr)
     }
     return utf8;
 #else
-    // Could use this also on Windows, but quick tests gave the impression that this is significantly slower
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
+    // Could use this also on Windows but quick tests gave the impression that this is significantly slower
+    std::wstring_convert<WStringFacet> converter;
     return converter.to_bytes(wstr);
 #endif
 }
 
-std::wstring ToUtf16(const String& str)
+std::wstring ToWString(const String& str)
 {
 #ifdef WIN32
     std::wstring utf16;
@@ -58,8 +64,7 @@ std::wstring ToUtf16(const String& str)
     }
     return utf16;
 #else
-    // Could use this also on Windows, but quick tests gave the impression that this is significantly slower
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
+    std::wstring_convert<WStringFacet> converter;
     return converter.from_bytes(str);
 #endif
 }
@@ -85,7 +90,7 @@ void Print(const String& str, OutputStream stream)
 {
     auto out = stream == OutputStream::Err ? stderr : stdout;
 #ifdef WIN32
-    const auto wstr = ToUtf16(str);
+    const auto wstr = ToWString(str);
     // Note: could use GetConsoleMode(), it should give more reliable results, especially for stdin.
     if (_isatty(_fileno(out)) != 0) // no output redirection
     {
@@ -117,7 +122,7 @@ std::vector<String> ParseArguments(int argc, char** argv, bool skipFirst)
     PWSTR *argvw = CommandLineToArgvW(GetCommandLine(), &argc);
     for (int i = skipFirst ? 1 : 0; i < argc; ++i)
     {
-        args.push_back(FromUtf16(std::wstring{ argvw[i] }));
+        args.push_back(FromWString(std::wstring{ argvw[i] }));
     }
     LocalFree(argvw);
     return args;
@@ -129,8 +134,8 @@ std::vector<String> ParseArguments(int argc, char** argv, bool skipFirst)
 int CompareI(ByteArray str1, ByteArray str2)
 {
 #ifdef _WIN32
-    const auto wstr1 = ToUtf16(str1);
-    const auto wstr2 = ToUtf16(str2);
+    const auto wstr1 = ToWString(str1);
+    const auto wstr2 = ToWString(str2);
     return StrCmpIW(wstr1.c_str(), wstr2.c_str());
 #else
     /// @todo strcasecmp() probably doesn't support UTF-8?

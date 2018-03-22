@@ -142,10 +142,20 @@ struct ProgamOptionMap
     //std::map<NamePair, std::string> opts;
 };
 
-void LogErrorAndExit(const std::string& msg)
+void LogE(const Utf8::String& msg)
 {
-    std::cerr << msg << "\n";
+    Utf8::PrintLine("Error: " + msg, Utf8::OutputStream::Err);
+}
+
+void LogErrorAndExit(const Utf8::String& msg)
+{
+    LogE(msg);
     std::exit(EXIT_FAILURE);
+}
+
+void Log(const Utf8::String& msg)
+{
+    Utf8::PrintLine(msg, Utf8::OutputStream::Out);
 }
 
 uint16_t PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
@@ -157,7 +167,7 @@ uint16_t PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::strin
     else { LogErrorAndExit("Invalid sorting criteria: '" + prop + "'."); return UINT16_MAX;  }
 }
 
-std::string PokemonToString(const PoGoCmp::PokemonSpecie& pkm, std::string fmt, const std::string& sortCriteria)
+Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt, const std::string& sortCriteria)
 {
     using namespace StringUtils;
     const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type));
@@ -200,8 +210,7 @@ int main(int argc, char **argv)
     ProgamOptionMap opts{ Utf8::ParseArguments(argc, argv) };
     if (opts.args.empty())
     {
-        std::cerr << "Invalid usage.\n";
-        //Utf8::PrintLine("Invalid usage.", Utf8::OutputStream::Err);
+        LogE("Invalid usage.");
         PrintHelp();
         return EXIT_FAILURE;
     }
@@ -217,15 +226,15 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("-v", "--version"))
     {
-        std::cout << "PoGoCmpCli " << PoGoCmpVersionString() << "\n";
+        Log("PoGoCmpCli " + Utf8::String(PoGoCmpVersionString()));
         return EXIT_SUCCESS;
     }
 
     /// @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
-        std::cout << "Available Pokedex range " << std::to_string(maxRange.first)
-            << "-" << std::to_string(maxRange.second) << "\n";
+        Log("Available Pokedex range " + std::to_string(maxRange.first) +
+            "-" + std::to_string(maxRange.second));
         return EXIT_SUCCESS;
     }
 
@@ -248,13 +257,13 @@ int main(int argc, char **argv)
 
         using namespace StringUtils;
 
-        /// @todo Unicode support
-        //const std::wregex rangePattern{
-        //    R"(([\w+\u2640\u2642\u00e9\u00c9)-.' ]+)- ?(\b[\w+\u2640\u2642\u00e9\u00c9)-.' ]+))"
-        //};
-        /// @todo trim in the regex instead of using trim() functions
-        const std::regex rangePattern{ R"(([\w-.' ]+)(,)?([\w-.' ]+)?)" }; // e.g. "16,32", or "bulbasaur,ivysaur", or "250"
-        std::smatch rangeMatches;
+        // E.g. "16,32", or "bulbasaur,ivysaur", or "250". The names can contain following
+        // Unicode characters: ♀ (\u2640), ♂ (\u2642), é (\u00e9), É (\u00c9).
+        /// @todo Test for this
+        const std::wregex rangePattern{
+            LR"(([\w-.' \u2640\u2642\u00e9\u00c9]+)(,)?([\w-.' \u2640\u2642\u00e9\u00c9]+)?)"
+        };
+        std::wsmatch rangeMatches;
 
         std::set<PokedexRange> ranges;
         auto includes = opts.OptionValues("-i", "--include");
@@ -264,18 +273,20 @@ int main(int argc, char **argv)
         for (const auto& include : includes)
         {
             PokedexRange range;
-            if (include == "all") { range = maxRange; }
-            else if (include == "gen1") { range = gen1Range; }
-            else if (include == "gen2") { range = gen2Range; }
-            else if (include == "gen3") { range = gen3Range; }
-            else if (std::regex_match(include, rangeMatches, rangePattern))
+            auto winclude = Utf8::ToWString(include);
+            if (winclude == L"all") { range = maxRange; }
+            else if (winclude == L"gen1") { range = gen1Range; }
+            else if (winclude == L"gen2") { range = gen2Range; }
+            else if (winclude == L"gen3") { range = gen3Range; }
+            else if (std::regex_match(winclude, rangeMatches, rangePattern))
             {
                 try
                 {
-                    auto rangeFirst = rangeMatches[1].str();
+                    auto rangeFirst = Utf8::FromWString(rangeMatches[1].str());
+                    /// @todo trim in the regex instead of using trim() functions
                     Trim(rangeFirst);
                     //auto type = rangeMatches[2].str();
-                    auto rangeSecond = rangeMatches.size() > 2 ? rangeMatches[3].str() : "";
+                    auto rangeSecond = rangeMatches.size() > 2 ? Utf8::FromWString(rangeMatches[3].str()) : "";
                     Trim(rangeSecond);
 
                     range.first = IsNumber(rangeFirst) ? std::stoul(rangeFirst)
@@ -337,17 +348,16 @@ int main(int argc, char **argv)
             }
         }
 
-
         for (const auto& range : ranges)
         {
-            std::cout << "Pokedex range " << range.first << "-" << range.second << ":\n";
+            Log("Pokedex range " + std::to_string(range.first) + "-" + std::to_string(range.second) + ":");
             auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
             auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
             std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
 
-            std::cout << data.size() << " matches (showing ";
+            Utf8::Print(std::to_string(data.size()) + " matches (showing ");
             numResults = std::min(numResults, dataSize);
-            std::cout << numResults << " results):\n";
+            Utf8::PrintLine(std::to_string(numResults) + " results):");
 
             std::sort(data.begin(), data.end(), sortFunction);
 
@@ -356,17 +366,16 @@ int main(int argc, char **argv)
 
             for (const auto& pkm : results)
             {
-                std::cout << PokemonToString(pkm, format, sortCriteria);
+                Utf8::Print(PokemonToString(pkm, format, sortCriteria));
             }
         }
-        //std::cout << "\n";
 
         ret = EXIT_SUCCESS;
     }
 
     if (ret != EXIT_SUCCESS)
     {
-        std::cerr << "Error: no command given.\n";
+        LogE("No command given.");
     }
 
     /// @todo move this to ProgramOptionMap
@@ -374,7 +383,7 @@ int main(int argc, char **argv)
     {
         if (std::count(knownArgs.begin(), knownArgs.end(), *it) == 0 && !opts.IsValue(it))
         {
-            std::cerr << "Unknown parameter '" << *it << "'\n";
+            LogE("Unknown parameter '" + *it  + "'");
         }
     }
 

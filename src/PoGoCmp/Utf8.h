@@ -19,9 +19,10 @@ using ByteArray = const char*;
 
 enum class OutputStream : bool { Out, Err };
 
-POGOCMP_API String FromUtf16(const std::wstring& wstr);
-
-POGOCMP_API std::wstring ToUtf16(const String& str);
+/// wstring assumed to contain UTF-16 on Windows and UTF-32 on other platforms.
+POGOCMP_API String FromWString(const std::wstring& wstr);
+/// wstring assumed to contain UTF-16 on Windows and UTF-32 on other platforms.
+POGOCMP_API std::wstring ToWString(const String& str);
 
 /// Parses argc/argv into a UTF-8 encoded string vector.
 /// On Windows argc/argv is ignored and CommandLineToArgvW/GetCommandLine used instead.
@@ -54,21 +55,21 @@ public:
     ifstream() : std::ifstream() {}
 
     explicit ifstream(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::in) :
-        std::ifstream(ToUtf16(filename), mode)
+        std::ifstream(ToWString(filename), mode)
     {}
 
     explicit ifstream(const String& filename, std::ios_base::open_mode mode = std::ios_base::in) :
-        std::ifstream(ToUtf16(filename), mode)
+        std::ifstream(ToWString(filename), mode)
     {}
 
     void open(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::in)
     {
-        std::ifstream::open(ToUtf16(filename), mode);
+        std::ifstream::open(ToWString(filename), mode);
     }
 
     void open(const String& filename, std::ios_base::open_mode mode = std::ios_base::in)
     {
-        std::ifstream::open(ToUtf16(filename), mode);
+        std::ifstream::open(ToWString(filename), mode);
     }
 };
 
@@ -78,21 +79,21 @@ public:
     ofstream() : std::ofstream() {}
 
     explicit ofstream(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::out) :
-        std::ofstream(ToUtf16(filename), mode)
+        std::ofstream(ToWString(filename), mode)
     {}
 
     explicit ofstream(const String& filename, std::ios_base::open_mode mode = std::ios_base::out) :
-        std::ofstream(ToUtf16(filename), mode)
+        std::ofstream(ToWString(filename), mode)
     {}
 
     void open(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::out)
     {
-        std::ofstream::open(ToUtf16(filename), mode);
+        std::ofstream::open(ToWString(filename), mode);
     }
 
     void open(const String& filename, std::ios_base::open_mode mode = std::ios_base::out)
     {
-        std::ofstream::open(ToUtf16(filename), mode);
+        std::ofstream::open(ToWString(filename), mode);
     }
 };
 #else
