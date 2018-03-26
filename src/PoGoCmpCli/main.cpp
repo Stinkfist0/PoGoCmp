@@ -74,7 +74,7 @@ const std::vector<ProgramOption> programsOptions {
     },
     // Commands
     { "sort", "", "Sort the Pokemon by certain criteria: "
-        "'number' (default), 'attack', 'defense' or 'stamina'."
+        "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
     },
     { "info", "", "Print information about the available data set." }
 };
@@ -163,15 +163,16 @@ void Log(const Utf8::String& msg)
     Utf8::PrintLine(msg, Utf8::OutputStream::Out);
 }
 
-uint16_t PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
+/// returns negative number if unknown criteria given
+int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
     if (prop.empty() || prop == "number") { return pkm.number; }
-    else if (prop == "attack") { return pkm.baseAtk; }
-    else if (prop == "defense") { return pkm.baseDef; }
-    else if (prop == "stamina") { return pkm.baseSta; }
-    //else if (prop == "bulk") { return pkm.baseSta * pkm.baseDef; }
-    //else if (prop == "total") { return pkm.baseAtk + pkm.baseDef + pkm.baseSta ; }
-    else { LogErrorAndExit("Invalid sorting criteria: '" + prop + "'."); return UINT16_MAX;  }
+    else if (prop ==  "atk" || prop == "attack") { return pkm.baseAtk; }
+    else if (prop ==  "def" || prop == "defense") { return pkm.baseDef; }
+    else if (prop ==  "sta" || prop ==  "hp" || prop == "stamina") { return pkm.baseSta; }
+    else if (prop == "bulk") { return pkm.baseSta * pkm.baseDef; }
+    else if (prop == "total") { return pkm.baseAtk + pkm.baseDef + pkm.baseSta ; }
+    else { return -1; }
 }
 
 Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt, const std::string& sortCriteria)
@@ -255,11 +256,13 @@ int main(int argc, char **argv)
     if (opts.HasOption("sort"))
     {
         const bool ascending = !opts.HasOption("-d", "--descending");
-        using Cmp = std::function<bool(uint16_t, uint16_t)>;
+        using Cmp = std::function<bool(int, int)>;
         const auto cmp = ascending ? Cmp(std::less<>()) : Cmp(std::greater<>());
         const std::string sortCriteria = opts.OptionValue("sort");
         auto sortFunction = [&cmp, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-            return cmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
+            auto lval = PropertyValueByName(lhs, sortCriteria), rval = PropertyValueByName(rhs, sortCriteria);
+            if (lval < 0 || rval < 0) LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
+            return cmp(lval, rval);
         };
 
         using namespace StringUtils;
