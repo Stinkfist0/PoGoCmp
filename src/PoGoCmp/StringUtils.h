@@ -19,7 +19,7 @@ static inline void SnakeCaseToTitleCase(std::string &str)
     for (++i; i < str.length(); ++i)
     {
         if (str[i] == '_') str[i] = ' ';
-        else if (str[i - 1] == ' ') str[i] = std::toupper(str[i], cLocale);
+        else if (str[i - 1] == ' ' || str[i - 1] == '-') str[i] = std::toupper(str[i], cLocale);
         else str[i] = std::tolower(str[i], cLocale);
     }
 }
