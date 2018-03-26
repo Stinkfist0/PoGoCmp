@@ -72,6 +72,9 @@ const std::vector<ProgramOption> programsOptions {
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \\n (new line), \\t (tab)"
     },
+    { "", "--rarity",
+        "Show only Pokemon with matching rarity type (normal/legendary/mythic). "
+        "By default all rarities are included."},
     // Commands
     { "sort", "", "Sort the Pokemon by certain criteria: "
         "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
@@ -133,6 +136,8 @@ struct ProgamOptionMap
         }
         return ret;
     }
+
+    StringVector OptionValues(const std::string& name) const { return OptionValues(name, name); }
 
     /// @param valueIt Iterator to program option which should be considered a value.
     bool IsValue(StringVector::const_iterator it) const
@@ -382,6 +387,31 @@ int main(int argc, char **argv)
             [](const auto& a, const auto& b) { return a.number == b.number; }),
             results.end());
 
+        std::vector<PoGoCmp::PokemonRarity> rarities;
+        auto rarityStrings = opts.OptionValues("--rarity");
+        if (rarityStrings.empty())
+        {
+            rarities.push_back(PoGoCmp::PokemonRarity::NORMAL);
+            rarities.push_back(PoGoCmp::PokemonRarity::LEGENDARY);
+            rarities.push_back(PoGoCmp::PokemonRarity::MYTHIC);
+        }
+        else
+        {
+            for (const auto& rarityStr : rarityStrings)
+            {
+                auto rarity = PoGoCmp::StringToPokemonRarity(rarityStr.c_str());
+                if (rarity == PoGoCmp::PokemonRarity::NONE)
+                    LogErrorAndExit("Unknown rarity '" + rarityStr + "'");
+                rarities.push_back(rarity);
+            }
+        }
+
+        // oldSize == ...
+        results.erase(std::remove_if(results.begin(), results.end(), [&rarities](const auto& pkm) {
+            return std::find(rarities.begin(), rarities.end(), pkm.rarity) == rarities.end();
+        }), results.end());
+        // if (verbose) log how many results removed
+
         const auto numMatches = (int)results.size();
             //std::accumulate(results.begin(), results.end(), 0,
             //[](const auto& a, const auto& b) { return a + (int)b.second.size(); });
@@ -395,9 +425,11 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < numMatches && i < numResults; ++i)
         {
-            /* Log("Pokédex range " + std::to_string(result.first.first) +
-                "-" + std::to_string(result.first.second) + ":"); */
-            Utf8::Print(/*std::to_string(i+1) + ": " +*/ PokemonToString(results[i], format, sortCriteria));
+            /* if (verbose) Log("Pokédex range " + std::to_string(result.first.first) + "-" +
+                std::to_string(result.first.second) + ":"); */
+
+            // if (verbose) Utf8::Print(std::to_string(i+1) + ": ");
+            Utf8::Print(PokemonToString(results[i], format, sortCriteria));
         }
 
         ret = EXIT_SUCCESS;
