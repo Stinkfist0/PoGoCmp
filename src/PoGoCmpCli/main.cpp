@@ -10,17 +10,18 @@
 #include <sstream>
 #include <regex>
 #include <functional>
-#include <set>
+#include <numeric>
 
 const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\\n" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
-/// @todo generate values for these in PoGoCmpDb.h
 using PokedexRange = std::pair<size_t, size_t>;
+/// @todo generate values for these in PoGoCmpDb.h
 const PokedexRange gen1Range{ 1, 151 };
 const PokedexRange gen2Range{ 152, 251 };
 const PokedexRange gen3Range{ 252, 386 };
 const PokedexRange maxRange{ 1, PoGoCmp::PokemonByNumber.size() };
 
+//template <typename ValueType>
 struct ProgramOption
 {
     ProgramOption() {}
@@ -42,13 +43,16 @@ struct ProgramOption
     Type type;
     std::string shortName;
     std::string longName;
-    std::string help;
+    std::string help;  /**< @todo Unicode support */
+
     ///std::string longHelp; // when -h <command> is used?
     //bool multiple; // are multiple same options supported
+    // ValueType value
 };
 
 std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 {
+    /// @todo Unicode support
     out << opt.shortName << (opt.longName.empty() ? "" : ",") << opt.longName << ": " << opt.help;
     return out;
 }
@@ -59,8 +63,9 @@ const std::vector<ProgramOption> programsOptions {
     //{ "", "--verbose", "Verbose log prints."},
     //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
     { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
-    { "-i", "--include", "Specify Pokemon or range of Pokemon to be included (use multiple options to specify multiple individual Pokemon): "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported."},
+    { "-i", "--include", "Specify Pokemon or range of Pokemon to be included: "
+        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
+        "Multiple options supported."},
     { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         "Specify format for the output,'" + defaultFormat + "' by default: "
@@ -164,6 +169,8 @@ uint16_t PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::strin
     else if (prop == "attack") { return pkm.baseAtk; }
     else if (prop == "defense") { return pkm.baseDef; }
     else if (prop == "stamina") { return pkm.baseSta; }
+    //else if (prop == "bulk") { return pkm.baseSta * pkm.baseDef; }
+    //else if (prop == "total") { return pkm.baseAtk + pkm.baseDef + pkm.baseSta ; }
     else { LogErrorAndExit("Invalid sorting criteria: '" + prop + "'."); return UINT16_MAX;  }
 }
 
@@ -248,11 +255,11 @@ int main(int argc, char **argv)
     if (opts.HasOption("sort"))
     {
         const bool ascending = !opts.HasOption("-d", "--descending");
+        using Cmp = std::function<bool(uint16_t, uint16_t)>;
+        const auto cmp = ascending ? Cmp(std::less<>()) : Cmp(std::greater<>());
         const std::string sortCriteria = opts.OptionValue("sort");
-        auto sortFunction = [ascending, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-            return ascending
-                ? PropertyValueByName(lhs, sortCriteria) < PropertyValueByName(rhs, sortCriteria)
-                : PropertyValueByName(lhs, sortCriteria) > PropertyValueByName(rhs, sortCriteria);
+        auto sortFunction = [&cmp, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
+            return cmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
         };
 
         using namespace StringUtils;
@@ -265,15 +272,16 @@ int main(int argc, char **argv)
         };
         std::wsmatch rangeMatches;
 
-        std::set<PokedexRange> ranges;
+        std::vector<PokedexRange> ranges;
         auto includes = opts.OptionValues("-i", "--include");
         if (includes.empty())
             includes.push_back("all");
 
         for (const auto& include : includes)
         {
+            // If first == second, only a single Pokémon is wanted.
             PokedexRange range;
-            auto winclude = Utf8::ToWString(include);
+            const auto winclude = Utf8::ToWString(include);
             if (winclude == L"all") { range = maxRange; }
             else if (winclude == L"gen1") { range = gen1Range; }
             else if (winclude == L"gen2") { range = gen2Range; }
@@ -321,18 +329,21 @@ int main(int argc, char **argv)
                 LogErrorAndExit(Concat("Invalid value for 'include', '", include, "'"));
             }
 
-            ranges.insert(range);
+            ranges.push_back(range);
         }
 
-        size_t numResults = PoGoCmp::PokemonByNumber.size();
+        //std::sort(ranges.begin(), ranges.end());
+        //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
+
+        int numResults = (int)PoGoCmp::PokemonByNumber.size();
         auto resultsVal = opts.OptionValue("-r", "--results");
         if (!resultsVal.empty())
         {
             try
             {
-                numResults = std::min((size_t)std::stoul(resultsVal), numResults);
+                numResults = std::min(std::stoi(resultsVal), numResults);
             }
-            catch(const std::exception& e)
+            catch (const std::exception& e)
             {
                 LogErrorAndExit(Concat("Failed to parse -r/--results value, '", resultsVal, "': ", e.what()));
             }
@@ -348,34 +359,45 @@ int main(int argc, char **argv)
             }
         }
 
+        //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
+
+        //std::vector<std::pair<PokedexRange, std::vector<PoGoCmp::PokemonSpecie>>> results;
+        std::vector<PoGoCmp::PokemonSpecie> results;
+
         for (const auto& range : ranges)
         {
-            Log("Pokedex range " + std::to_string(range.first) + "-" + std::to_string(range.second) + ":");
             auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
             auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
-            std::vector<PoGoCmp::PokemonSpecie> data(dataBegin, dataBegin + dataSize);
+            std::vector<PoGoCmp::PokemonSpecie> result(dataBegin, dataBegin + dataSize);
+            std::sort(result.begin(), result.end(), sortFunction);
+            //results.push_back({ range, result });
+            results.insert(results.end(), result.begin(), result.end());
+        }
 
-            Utf8::Print(std::to_string(data.size()) + " matches (showing ");
-            numResults = std::min(numResults, dataSize);
-            Utf8::PrintLine(std::to_string(numResults) + " results):");
+        std::sort(results.begin(), results.end(), sortFunction);
+        results.erase(std::unique(results.begin(), results.end(),
+            [](const auto& a, const auto& b) { return a.number == b.number; }),
+            results.end());
 
-            std::sort(data.begin(), data.end(), sortFunction);
+        const auto numMatches = (int)results.size();
+            //std::accumulate(results.begin(), results.end(), 0,
+            //[](const auto& a, const auto& b) { return a + (int)b.second.size(); });
 
-            std::vector<PoGoCmp::PokemonSpecie> results;
-            results.insert(results.begin(), data.begin(), data.begin() + numResults);
+        Utf8::Print(std::to_string(numMatches) + " matches (showing ");
 
-            for (const auto& pkm : results)
-            {
-                Utf8::Print(PokemonToString(pkm, format, sortCriteria));
-            }
+        // negative number means 'show all'
+        numResults = numResults < 0 ? numMatches : std::min(numResults, numMatches);
+
+        Utf8::PrintLine(std::to_string(numResults) + " results):");
+
+        for (int i = 0; i < numMatches && i < numResults; ++i)
+        {
+            /* Log("Pokédex range " + std::to_string(result.first.first) +
+                "-" + std::to_string(result.first.second) + ":"); */
+            Utf8::Print(/*std::to_string(i+1) + ": " +*/ PokemonToString(results[i], format, sortCriteria));
         }
 
         ret = EXIT_SUCCESS;
-    }
-
-    if (ret != EXIT_SUCCESS)
-    {
-        LogE("No command given.");
     }
 
     /// @todo move this to ProgramOptionMap
@@ -385,6 +407,11 @@ int main(int argc, char **argv)
         {
             LogE("Unknown parameter '" + *it  + "'");
         }
+    }
+
+    if (ret != EXIT_SUCCESS)
+    {
+        LogE("No command given.");
     }
 
     return ret;

@@ -31,7 +31,7 @@ POGOCMP_API std::wstring ToWString(const String& str);
 /// and typically uninteresting.
 POGOCMP_API std::vector<String> ParseArguments(int argc, char** argv, bool skipFirst = true);
 
-/// Prints Unicode string to stdout (error == false) or stderr (error == true).
+/// Prints Unicode string to output stream.
 /// On Window, in case the output is redirected, EnableUnicodeStdIo() may need to be called
 /// in order to Unicode output to appear correctly.
 POGOCMP_API void Print(const String& str, OutputStream stream = OutputStream::Out);
