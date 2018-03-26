@@ -19,6 +19,8 @@ namespace PoGoCmp {
 
 enum class PokemonRarity : uint8_t
 {
+    /// Unspecified/invalid.
+    NONE,
     /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
     NORMAL,
     /// Obtainable only from raids, cannot be placed in gyms.
@@ -220,13 +222,13 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 141, 220, 203, 120, "KABUTOPS", PokemonType::ROCK, PokemonType::WATER, PokemonRarity::NORMAL },
     { 142, 221, 164, 160, "AERODACTYL", PokemonType::ROCK, PokemonType::FLYING, PokemonRarity::NORMAL },
     { 143, 190, 190, 320, "SNORLAX", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 144, 192, 249, 180, "ARTICUNO", PokemonType::ICE, PokemonType::FLYING, PokemonRarity::NORMAL },
-    { 145, 253, 188, 180, "ZAPDOS", PokemonType::ELECTRIC, PokemonType::FLYING, PokemonRarity::NORMAL },
-    { 146, 251, 184, 180, "MOLTRES", PokemonType::FIRE, PokemonType::FLYING, PokemonRarity::NORMAL },
+    { 144, 192, 249, 180, "ARTICUNO", PokemonType::ICE, PokemonType::FLYING, PokemonRarity::LEGENDARY },
+    { 145, 253, 188, 180, "ZAPDOS", PokemonType::ELECTRIC, PokemonType::FLYING, PokemonRarity::LEGENDARY },
+    { 146, 251, 184, 180, "MOLTRES", PokemonType::FIRE, PokemonType::FLYING, PokemonRarity::LEGENDARY },
     { 147, 119, 94, 82, "DRATINI", PokemonType::DRAGON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 148, 163, 138, 122, "DRAGONAIR", PokemonType::DRAGON, PokemonType::NONE, PokemonRarity::NORMAL },
     { 149, 263, 201, 182, "DRAGONITE", PokemonType::DRAGON, PokemonType::FLYING, PokemonRarity::NORMAL },
-    { 150, 300, 182, 193, "MEWTWO", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::NORMAL },
+    { 150, 300, 182, 193, "MEWTWO", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::LEGENDARY },
     { 151, 210, 210, 200, "MEW", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::MYTHIC },
     { 152, 92, 122, 90, "CHIKORITA", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL },
     { 153, 122, 155, 120, "BAYLEEF", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL },
@@ -319,14 +321,14 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 240, 151, 108, 90, "MAGBY", PokemonType::FIRE, PokemonType::NONE, PokemonRarity::NORMAL },
     { 241, 157, 211, 190, "MILTANK", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL },
     { 242, 129, 229, 510, "BLISSEY", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 243, 241, 210, 180, "RAIKOU", PokemonType::ELECTRIC, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 244, 235, 176, 230, "ENTEI", PokemonType::FIRE, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 245, 180, 235, 200, "SUICUNE", PokemonType::WATER, PokemonType::NONE, PokemonRarity::NORMAL },
+    { 243, 241, 210, 180, "RAIKOU", PokemonType::ELECTRIC, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 244, 235, 176, 230, "ENTEI", PokemonType::FIRE, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 245, 180, 235, 200, "SUICUNE", PokemonType::WATER, PokemonType::NONE, PokemonRarity::LEGENDARY },
     { 246, 115, 93, 100, "LARVITAR", PokemonType::ROCK, PokemonType::GROUND, PokemonRarity::NORMAL },
     { 247, 155, 133, 140, "PUPITAR", PokemonType::ROCK, PokemonType::GROUND, PokemonRarity::NORMAL },
     { 248, 251, 212, 200, "TYRANITAR", PokemonType::ROCK, PokemonType::DARK, PokemonRarity::NORMAL },
-    { 249, 193, 323, 212, "LUGIA", PokemonType::PSYCHIC, PokemonType::FLYING, PokemonRarity::NORMAL },
-    { 250, 239, 274, 193, "HO_OH", PokemonType::FIRE, PokemonType::FLYING, PokemonRarity::NORMAL },
+    { 249, 193, 323, 212, "LUGIA", PokemonType::PSYCHIC, PokemonType::FLYING, PokemonRarity::LEGENDARY },
+    { 250, 239, 274, 193, "HO_OH", PokemonType::FIRE, PokemonType::FLYING, PokemonRarity::LEGENDARY },
     { 251, 210, 210, 200, "CELEBI", PokemonType::PSYCHIC, PokemonType::GRASS, PokemonRarity::MYTHIC },
     { 252, 124, 104, 80, "TREECKO", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL },
     { 253, 172, 130, 100, "GROVYLE", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL },
@@ -453,14 +455,14 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber {{
     { 374, 96, 141, 80, "BELDUM", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::NORMAL },
     { 375, 138, 185, 120, "METANG", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::NORMAL },
     { 376, 257, 247, 160, "METAGROSS", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::NORMAL },
-    { 377, 179, 356, 160, "REGIROCK", PokemonType::ROCK, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 378, 179, 356, 160, "REGICE", PokemonType::ICE, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 379, 143, 285, 160, "REGISTEEL", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 380, 228, 268, 160, "LATIAS", PokemonType::DRAGON, PokemonType::PSYCHIC, PokemonRarity::NORMAL },
-    { 381, 268, 228, 160, "LATIOS", PokemonType::DRAGON, PokemonType::PSYCHIC, PokemonRarity::NORMAL },
-    { 382, 270, 251, 182, "KYOGRE", PokemonType::WATER, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 383, 270, 251, 182, "GROUDON", PokemonType::GROUND, PokemonType::NONE, PokemonRarity::NORMAL },
-    { 384, 284, 170, 191, "RAYQUAZA", PokemonType::DRAGON, PokemonType::FLYING, PokemonRarity::NORMAL },
+    { 377, 179, 356, 160, "REGIROCK", PokemonType::ROCK, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 378, 179, 356, 160, "REGICE", PokemonType::ICE, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 379, 143, 285, 160, "REGISTEEL", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 380, 228, 268, 160, "LATIAS", PokemonType::DRAGON, PokemonType::PSYCHIC, PokemonRarity::LEGENDARY },
+    { 381, 268, 228, 160, "LATIOS", PokemonType::DRAGON, PokemonType::PSYCHIC, PokemonRarity::LEGENDARY },
+    { 382, 270, 251, 182, "KYOGRE", PokemonType::WATER, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 383, 270, 251, 182, "GROUDON", PokemonType::GROUND, PokemonType::NONE, PokemonRarity::LEGENDARY },
+    { 384, 284, 170, 191, "RAYQUAZA", PokemonType::DRAGON, PokemonType::FLYING, PokemonRarity::LEGENDARY },
     { 385, 210, 210, 200, "JIRACHI", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::MYTHIC },
     { 386, 1, 1, 1, "DEOXYS", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::MYTHIC },
 }};
@@ -523,12 +525,24 @@ static inline const char* PokemonTypeToString(PokemonType type)
     return "NONE";
 }
 
-/// Returns all-uppercase name
+/// Case-insensitive.
+/// @return PokemonRarity::NONE if unknown string passed.
+static inline PokemonRarity StringToPokemonRarity(const char* str)
+{
+    if (CompareI(str, "LEGENDARY") == 0) return PokemonRarity::LEGENDARY;
+    if (CompareI(str, "MYTHIC") == 0) return PokemonRarity::MYTHIC;
+    if (CompareI(str, "NORMAL") == 0) return PokemonRarity::NORMAL;
+    return PokemonRarity::NONE;
+}
+
+/// Returns all-uppercase name.
 static inline const char* PokemonRarityToString(PokemonRarity rarity)
 {
     if (rarity == PokemonRarity::LEGENDARY) return "LEGENDARY";
     if (rarity == PokemonRarity::MYTHIC) return "MYTHIC";
-    return "NORMAL";
+    if (rarity == PokemonRarity::NORMAL) return "NORMAL";
+    if (rarity == PokemonRarity::NONE) return "NONE";
+    return "";
 }
 
 struct StringLessThanI

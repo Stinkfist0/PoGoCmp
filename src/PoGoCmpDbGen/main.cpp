@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                 //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
                 if (it != settings.end() && *it == "POKEMON_RARITY_LEGENDARY")
                 {
-                    pkm.rarity = PokemonRarity::NORMAL;
+                    pkm.rarity = PokemonRarity::LEGENDARY;
                 }
                 else if (it != settings.end() && *it == "POKEMON_RARITY_MYTHIC")
                 {
@@ -130,8 +130,9 @@ int main(int argc, char **argv)
                 //    pkm.rarity = PokemonRarity::BABY;
                 else
                 {
-                    assert(pkm.rarity == PokemonRarity::NORMAL);
+                    pkm.rarity = PokemonRarity::NORMAL;
                 }
+                assert(pkm.rarity != PokemonRarity::NONE);
 
                 // TODO Need to take forms into consideration. For now only insert the main entry.
                 // Unown (29, same stats, 27 released currently)
@@ -186,6 +187,8 @@ namespace PoGoCmp {
     output <<
 R"(enum class PokemonRarity : uint8_t
 {
+    /// Unspecified/invalid.
+    NONE,
     /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
     NORMAL,
     /// Obtainable only from raids, cannot be placed in gyms.
@@ -292,12 +295,24 @@ static inline int CompareI(const char* str1, const char* str2)
 
     output <<
 R"(
-/// Returns all-uppercase name
+/// Case-insensitive.
+/// @return PokemonRarity::NONE if unknown string passed.
+static inline PokemonRarity StringToPokemonRarity(const char* str)
+{
+    if (CompareI(str, "LEGENDARY") == 0) return PokemonRarity::LEGENDARY;
+    if (CompareI(str, "MYTHIC") == 0) return PokemonRarity::MYTHIC;
+    if (CompareI(str, "NORMAL") == 0) return PokemonRarity::NORMAL;
+    return PokemonRarity::NONE;
+}
+
+/// Returns all-uppercase name.
 static inline const char* PokemonRarityToString(PokemonRarity rarity)
 {
     if (rarity == PokemonRarity::LEGENDARY) return "LEGENDARY";
     if (rarity == PokemonRarity::MYTHIC) return "MYTHIC";
-    return "NORMAL";
+    if (rarity == PokemonRarity::NORMAL) return "NORMAL";
+    if (rarity == PokemonRarity::NONE) return "NONE";
+    return "";
 }
 
 struct StringLessThanI
