@@ -189,7 +189,7 @@ Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt
     const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
 
     fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(pkm.number));
-    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(pkm.name)));
+    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(pkm.id)));
     fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(pkm.baseAtk));
     fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(pkm.baseDef));
     fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(pkm.baseSta));
@@ -306,11 +306,11 @@ int main(int argc, char **argv)
                     Trim(rangeSecond);
 
                     range.first = IsNumber(rangeFirst) ? std::stoul(rangeFirst)
-                        : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
+                        : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
 
                     range.second = rangeSecond.empty() ? range.first
                         : IsNumber(rangeSecond) ? std::stoul(rangeSecond)
-                        : PoGoCmp::PokemonByName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
+                        : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
 
                     if (range.first < 1)
                     {

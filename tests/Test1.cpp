@@ -6,8 +6,8 @@
 
 int main(/*int argc, char **argv*/)
 {
-    auto byName = PoGoCmp::PokemonByName.find("ivysaur");
-    if (byName == PoGoCmp::PokemonByName.end()) return EXIT_FAILURE;
+    auto byName = PoGoCmp::PokemonByIdName.find("ivysaur");
+    if (byName == PoGoCmp::PokemonByIdName.end()) return EXIT_FAILURE;
 
     auto pokedexNumber = 2;
     const auto& byNumber = PoGoCmp::PokemonByNumber[(*byName).second->number - 1];

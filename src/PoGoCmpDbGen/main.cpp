@@ -92,7 +92,7 @@ int main(int argc, char **argv)
                 const auto& settings = itemTemplate["pokemonSettings"];
                 PokemonSpecie pkm{};
                 pkm.number = (uint16_t)std::stoi(matches[1]);
-                pkm.name = settings["pokemonId"];//matches[2];
+                pkm.id = settings["pokemonId"];//matches[2];
                 pkm.baseAtk = settings["stats"]["baseAttack"];
                 pkm.baseDef = settings["stats"]["baseDefense"];
                 pkm.baseSta = settings["stats"]["baseStamina"];
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    std::cout << pkm.number << " " << pkm.name << " ignored\n";
+                    std::cout << pkm.number << " " << pkm.id << " ignored\n";
                 }
             }
         }
@@ -221,13 +221,12 @@ R"(struct PokemonSpecie
     uint16_t baseDef;
     /// Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokémon's specie name, uppercase with underscores.
-    /// Used as an idenfiter for Pokemon (pokemonId) in the input file.
+    /// Pokémon's ID/specie name, uppercase with underscores.
     /// Use PokemonIdToName() to translate this into a proper name.
     /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
     /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
     /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
-    std::string name;
+    std::string id;
     /// Primary type.
     PokemonType type;
     /// Secondary type, if applicable.
@@ -241,7 +240,7 @@ R"(struct PokemonSpecie
     auto writePokemon = [&output](const PokemonSpecie& pkm)
     {
         output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
-            << ", " << std::quoted(pkm.name) << ", PokemonType::" << PokemonTypeToString(pkm.type)
+            << ", " << std::quoted(pkm.id) << ", PokemonType::" << PokemonTypeToString(pkm.type)
             << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", PokemonRarity::"
             << PokemonRarityToString(pkm.rarity) << " }";
     };
@@ -323,13 +322,14 @@ struct StringLessThanI
     }
 };
 
+/// Case-insensitive.
+/// @sa PokemonNameToId, PokemonIdToName
+static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByIdName {
 )";
-
-    output << "static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByName {\n";
     for (const auto& it : pokemonTable)
     {
         //writePokemon(std::quoted(it.second.name), it.second);
-        output << indent << "{ " << std::quoted(it.second.name) << ", &PokemonByNumber[" << it.first - 1 << "] },\n" ;
+        output << indent << "{ " << std::quoted(it.second.id) << ", &PokemonByNumber[" << it.first - 1 << "] },\n" ;
     }
     output << "};";
     output <<
@@ -356,15 +356,15 @@ static inline const std::string& PokemonNameToId(const Utf8::String& name)
     // PokemonByNumber[83-1]    // "FARFETCHD"
     // PokemonByNumber[122-1]   // "MR_MIME"
     // PokemonByNumber[250-1]   // "HO_OH"
-    if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].name; }
-    else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].name; }
-    else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0) { return PokemonByNumber[83-1].name; }
-    else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].name; }
-    else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].name; }
+    if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].id; }
+    else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].id; }
+    else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0) { return PokemonByNumber[83-1].id; }
+    else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].id; }
+    else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].id; }
     else
     {
-        auto it = PokemonByName.find(name);
-        return it != PokemonByName.end() ? it->second->name : EmptyString;
+        auto it = PokemonByIdName.find(name);
+        return it != PokemonByIdName.end() ? it->second->id : EmptyString;
     }
 }
 
