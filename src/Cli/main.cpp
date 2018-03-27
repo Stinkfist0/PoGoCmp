@@ -1,7 +1,7 @@
-﻿#include "../PoGoCmp/PoGoCmp.h"
-#include "../PoGoCmp/PoGoCmpDb.h"
-#include "../PoGoCmp/StringUtils.h"
-#include "../PoGoCmp/Utf8.h"
+﻿#include "../Lib/PoGoCmp.h"
+#include "../Lib/PoGoDb.h"
+#include "../Lib/StringUtils.h"
+#include "../Lib/Utf8.h"
 
 #include <iostream>
 #include <string>

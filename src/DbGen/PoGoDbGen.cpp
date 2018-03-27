@@ -2,7 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "../PoGoCmp/PoGoCmpDb.h"
+#include "../Lib/PoGoDb.h"
 #ifdef _MSC_VER
 // Disable couple MSVC's static analyser warnings coming from json.hpp
 // The C28020 in particular is probably a false positive.

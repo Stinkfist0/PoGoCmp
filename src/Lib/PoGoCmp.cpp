@@ -1,5 +1,5 @@
 #include "PoGoCmp.h"
-#include "PoGoCmpDb.h"
+#include "PoGoDb.h"
 
 const char* PoGoCmpVersionString() { return "0.0.1"; }
 

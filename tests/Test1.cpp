@@ -1,5 +1,5 @@
 //#include "../src/PoGoCmp/PoGoCmp.h"
-#include "../src/PoGoCmp/PoGoCmpDb.h"
+#include "../src/Lib/PoGoDb.h"
 
 #include <cstdlib>
 #include <string>

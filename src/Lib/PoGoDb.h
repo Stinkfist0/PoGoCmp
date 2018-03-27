@@ -1,4 +1,4 @@
-/** @file PoGoCmpDb.h
+/** @file PoGoDb.h
     @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.
 
     Input file's timestamp 2018-02-10 02:24:00+0200 */

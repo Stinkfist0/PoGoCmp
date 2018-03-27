@@ -31,14 +31,14 @@ if (BUILD_SHARED_LIBS)
     add_definitions(-DPOGOCMP_SHARED_BUILD)
 endif()
 
-add_subdirectory(src/PoGoCmp)
+add_subdirectory(src/Lib)
 
 if (BUILD_CLI)
-    add_subdirectory(src/PoGoCmpCli)
+    add_subdirectory(src/Cli)
 endif()
 
 if (BUILD_DBGEN)
-    add_subdirectory(src/PoGoCmpDbGen)
+    add_subdirectory(src/DbGen)
 endif()
 
 if (BUILD_TESTS)
