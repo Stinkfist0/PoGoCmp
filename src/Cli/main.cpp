@@ -12,7 +12,7 @@
 #include <functional>
 #include <numeric>
 
-const std::string defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\\n" };
+const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\\n" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
 using PokedexRange = std::pair<size_t, size_t>;
 /// @todo generate values for these in PoGoCmpDb.h
@@ -26,8 +26,8 @@ struct ProgramOption
 {
     ProgramOption() {}
     /// type is deduced automatically from the shortName or longName.
-    ProgramOption(const std::string& sn, const std::string& ln, const std::string& h) :
-        shortName(sn), longName(ln), help(h)
+    ProgramOption(const std::string& sn, const std::string& ln, const std::wstring& h) :
+        shortName(sn), longName(ln), help(Utf8::FromWString(h))
     {
         type = IsArg(shortName) || IsArg(longName) ? Arg : Cmd;
     }
@@ -43,43 +43,42 @@ struct ProgramOption
     Type type;
     std::string shortName;
     std::string longName;
-    std::string help;  /**< @todo Unicode support */
+    Utf8::String help;
 
-    ///std::string longHelp; // when -h <command> is used?
+    ///std::string longHelp; // when help <command> is used?
     //bool multiple; // are multiple same options supported
     // ValueType value
 };
 
 std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 {
-    /// @todo Unicode support
     out << opt.shortName << (opt.longName.empty() ? "" : ",") << opt.longName << ": " << opt.help;
     return out;
 }
 
 const std::vector<ProgramOption> programsOptions {
-    { "-h", "--help", "Print help." },
-    { "-v", "--version", "Print version information and exit."},
-    //{ "", "--verbose", "Verbose log prints."},
-    //{ "-a", "--ascending", "Sort the results in ascending order (default)." },
-    { "-d", "--descending", "Sort the results in descending order (ascending by default)." },
-    { "-i", "--include", "Specify Pokemon or range of Pokemon to be included: "
+    { "-h", "--help", L"Print help." },
+    { "-v", "--version", L"Print version information and exit."},
+    //{ "", "--verbose", L"Verbose log prints."},
+    //{ "-a", "--ascending", L"Sort the results in ascending order (default)." },
+    { "-d", "--descending", L"Sort the results in descending order (ascending by default)." },
+    { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
         "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
         "Multiple options supported."},
-    { "-r", "--results", "Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
+    { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
-        "Specify format for the output,'" + defaultFormat + "' by default: "
+        L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \\n (new line), \\t (tab)"
     },
     { "", "--rarity",
-        "Show only Pokemon with matching rarity type (normal/legendary/mythic). "
+        L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
         "By default all rarities are included."},
     // Commands
-    { "sort", "", "Sort the Pokemon by certain criteria: "
+    { "sort", "", L"Sort the Pokémon by certain criteria: "
         "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
     },
-    { "info", "", "Print information about the available data set." }
+    { "info", "", L"Print information about the available data set." }
 };
 
 struct ProgamOptionMap
