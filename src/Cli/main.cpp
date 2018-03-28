@@ -11,8 +11,9 @@
 #include <regex>
 #include <functional>
 #include <numeric>
+#include <cmath>
 
-const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt\\n" };
+const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt CP %cp\\n" };
 /// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
 using PokedexRange = std::pair<size_t, size_t>;
 /// @todo generate values for these in PoGoCmpDb.h
@@ -69,7 +70,7 @@ const std::vector<ProgramOption> programsOptions {
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), \\n (new line), \\t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), \\n (new line), \\t (tab)"
     },
     { "", "--rarity",
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
@@ -167,6 +168,49 @@ void Log(const Utf8::String& msg)
     Utf8::PrintLine(msg, Utf8::OutputStream::Out);
 }
 
+/// @todo Move CP functions to the PoGoCmp API
+
+/// https://pokemongo.gamepress.gg/pokemon-stats-advanced
+/// @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
+/// @param atk [0, 15], integers.
+/// @param def [0, 15], integers.
+/// @param sta [0, 15], integers.
+/// @param pkm [0, 15], integers.
+/// @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
+/// @return < 0 on invalid input, > 0 otherwise
+int ComputeCp(float level, float atk, float def, float sta, const PoGoCmp::PokemonSpecie& pkm)
+{
+    const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
+    if (level  < 1 || level > numLevels) return -1;
+    if (atk < 0 || atk > 15) return -1;
+    if (def < 0 || def > 15) return -1;
+    if (sta < 0 || sta > 15) return -1;
+
+    float levelIdx;
+    auto levelFract = std::modf(level, &levelIdx);
+    if (levelFract != 0.f && levelFract != 0.5f) return -1;
+    levelIdx -= 1;
+    auto nextLevelIdx = std::min(levelIdx + 1, numLevels -1);
+    auto cpmBase = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)levelIdx];
+    auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
+    auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
+    auto cpm = levelFract != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
+    atk = pkm.baseAtk + atk;
+    def = pkm.baseDef + def;
+    sta = pkm.baseSta + sta;
+    return (int)std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f);
+}
+
+int MinCp(const PoGoCmp::PokemonSpecie& pkm)
+{
+    return ComputeCp(1, 0, 0, 0, pkm);
+}
+
+int MaxCp(const PoGoCmp::PokemonSpecie& pkm)
+{
+    return ComputeCp(40.f, 15, 15, 15, pkm);
+}
+
 /// returns negative number if unknown criteria given
 int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
@@ -176,6 +220,7 @@ int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& pr
     else if (prop ==  "sta" || prop ==  "hp" || prop == "stamina") { return pkm.baseSta; }
     else if (prop == "bulk") { return pkm.baseSta * pkm.baseDef; }
     else if (prop == "total") { return pkm.baseAtk + pkm.baseDef + pkm.baseSta ; }
+    else if (prop == "cp") { return MaxCp(pkm); }
     else { return -1; }
 }
 
@@ -197,6 +242,7 @@ Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
     fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(pkm, sortCriteria)));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
+    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(MaxCp(pkm)));
     fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
     fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
@@ -245,8 +291,8 @@ int main(int argc, char **argv)
     /// @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
-        Log("Available Pokedex range " + std::to_string(maxRange.first) +
-            "-" + std::to_string(maxRange.second));
+        Log("Available Pokedex range: " + std::to_string(maxRange.first) + "-" + std::to_string(maxRange.second));
+        Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
         return EXIT_SUCCESS;
     }
 
@@ -420,7 +466,7 @@ int main(int argc, char **argv)
         // negative number means 'show all'
         numResults = numResults < 0 ? numMatches : std::min(numResults, numMatches);
 
-        Utf8::PrintLine(std::to_string(numResults) + " results):");
+        Utf8::PrintLine(std::to_string(numResults) + (ascending ? " last" : " first") + " results):");
 
         for (int i = 0; i < numMatches && i < numResults; ++i)
         {
