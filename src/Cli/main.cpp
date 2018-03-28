@@ -14,9 +14,9 @@
 #include <cmath>
 
 const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt CP %cp\\n" };
-/// Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
+//! Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
 using PokedexRange = std::pair<size_t, size_t>;
-/// @todo generate values for these in PoGoCmpDb.h
+//! @todo generate values for these in PoGoCmpDb.h
 const PokedexRange gen1Range{ 1, 151 };
 const PokedexRange gen2Range{ 152, 251 };
 const PokedexRange gen3Range{ 252, 386 };
@@ -26,14 +26,14 @@ const PokedexRange maxRange{ 1, PoGoCmp::PokemonByNumber.size() };
 struct ProgramOption
 {
     ProgramOption() {}
-    /// type is deduced automatically from the shortName or longName.
+    //! type is deduced automatically from the shortName or longName.
     ProgramOption(const std::string& sn, const std::string& ln, const std::wstring& h) :
         shortName(sn), longName(ln), help(Utf8::FromWString(h))
     {
         type = IsArg(shortName) || IsArg(longName) ? Arg : Cmd;
     }
-    /// Commands have no prefix, arguments have either "-" or "--" prefix.
-    /// @todo could support also /-prefix, also e.g. would be nice to ignore/warn about e.g. ---prefix
+    //! Commands have no prefix, arguments have either "-" or "--" prefix.
+    //! @todo could support also /-prefix, also e.g. would be nice to ignore/warn about e.g. ---prefix
     static bool IsArg(const std::string &str)
     {
         return str.find_first_of("-") == 0 && !StringUtils::IsNumber(str);
@@ -46,7 +46,7 @@ struct ProgramOption
     std::string longName;
     Utf8::String help;
 
-    ///std::string longHelp; // when help <command> is used?
+    //!std::string longHelp; // when help <command> is used?
     //bool multiple; // are multiple same options supported
     // ValueType value
 };
@@ -85,11 +85,11 @@ const std::vector<ProgramOption> programsOptions {
 struct ProgamOptionMap
 {
     using StringVector = std::vector<std::string>;
-    /// (shortName, longName)
+    //! (shortName, longName)
     //using NamePair = std::pair <std::string, std::string>;
 
     ProgamOptionMap(const StringVector& args) : args(args) {}
-    /// @param argv The program invokation argument argv[0] is ignored.
+    //! @param argv The program invokation argument argv[0] is ignored.
     ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/)
         : ProgamOptionMap({ argv + 1, argv + argc })
     {
@@ -139,16 +139,16 @@ struct ProgamOptionMap
 
     StringVector OptionValues(const std::string& name) const { return OptionValues(name, name); }
 
-    /// @param valueIt Iterator to program option which should be considered a value.
+    //! @param valueIt Iterator to program option which should be considered a value.
     bool IsValue(StringVector::const_iterator it) const
     {
         if (it == args.begin() || it == args.end()) return false;
         auto prevIt = (it - 1);
         return (prevIt == args.begin() || ProgramOption::IsArg(*prevIt)) && !ProgramOption::IsArg(*it);
     }
-    /// The original arguments
+    //! The original arguments
     std::vector<std::string> args;
-    /// Program options and their values
+    //! Program options and their values
     //std::map<NamePair, std::string> opts;
 };
 
@@ -168,16 +168,16 @@ void Log(const Utf8::String& msg)
     Utf8::PrintLine(msg, Utf8::OutputStream::Out);
 }
 
-/// @todo Move CP functions to the PoGoCmp API
+//! @todo Move CP functions to the PoGoCmp API
 
-/// https://pokemongo.gamepress.gg/pokemon-stats-advanced
-/// @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
-/// @param atk [0, 15], integers.
-/// @param def [0, 15], integers.
-/// @param sta [0, 15], integers.
-/// @param pkm [0, 15], integers.
-/// @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
-/// @return < 0 on invalid input, > 0 otherwise
+//! https://pokemongo.gamepress.gg/pokemon-stats-advanced
+//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
+//! @param atk [0, 15], integer.
+//! @param def [0, 15], integer.
+//! @param sta [0, 15], integer.
+//! @param pkm [0, 15], integer.
+//! @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
+//! @return < 0 on invalid input, > 0 otherwise
 int ComputeCp(float level, float atk, float def, float sta, const PoGoCmp::PokemonSpecie& pkm)
 {
     const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
@@ -211,7 +211,7 @@ int MaxCp(const PoGoCmp::PokemonSpecie& pkm)
     return ComputeCp(40.f, 15, 15, 15, pkm);
 }
 
-/// returns negative number if unknown criteria given
+//! returns negative number if unknown criteria given
 int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
     if (prop.empty() || prop == "number") { return pkm.number; }
@@ -248,7 +248,7 @@ Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt
     return fmt;
 }
 
-/// @todo indentation
+//! @todo indentation
 void PrintHelp()
 {
     std::stringstream ss;
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    /// @todo Use info also to list type-effectiveness, attacks, etc.
+    //! @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
         Log("Available Pokedex range: " + std::to_string(maxRange.first) + "-" + std::to_string(maxRange.second));
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
 
         // E.g. "16,32", or "bulbasaur,ivysaur", or "250". The names can contain following
         // Unicode characters: ♀ (\u2640), ♂ (\u2642), é (\u00e9), É (\u00c9).
-        /// @todo Test for this
+        //! @todo Test for this
         const std::wregex rangePattern{
             LR"(([\w-.' \u2640\u2642\u00e9\u00c9]+)(,)?([\w-.' \u2640\u2642\u00e9\u00c9]+)?)"
         };
@@ -344,7 +344,7 @@ int main(int argc, char **argv)
                 try
                 {
                     auto rangeFirst = Utf8::FromWString(rangeMatches[1].str());
-                    /// @todo trim in the regex instead of using trim() functions
+                    //! @todo trim in the regex instead of using trim() functions
                     Trim(rangeFirst);
                     //auto type = rangeMatches[2].str();
                     auto rangeSecond = rangeMatches.size() > 2 ? Utf8::FromWString(rangeMatches[3].str()) : "";
@@ -480,7 +480,7 @@ int main(int argc, char **argv)
         ret = EXIT_SUCCESS;
     }
 
-    /// @todo move this to ProgramOptionMap
+    //! @todo move this to ProgramOptionMap
     for (auto it = opts.args.begin(); it != opts.args.end(); ++it)
     {
         if (std::count(knownArgs.begin(), knownArgs.end(), *it) == 0 && !opts.IsValue(it))

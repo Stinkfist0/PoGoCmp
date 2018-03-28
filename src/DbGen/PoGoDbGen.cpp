@@ -30,18 +30,18 @@
 {
     // rankNum skipped, seems uninteresting for now
 
-    /// The required amount of XP to level up.
+    //! The required amount of XP to level up.
     std::vector<uint32_t> requiredExperience; //std::array<uint32_t, 40> requiredExperience;
 
-    /// Combat point (CP) multipliers for different Pokémon levels.
+    //! Combat point (CP) multipliers for different Pokémon levels.
     std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
 
-    /// Combat point (CP) multipliers for different Pokémon levels.
-    /// Level cap for Pokémon from eggs.
+    //! Combat point (CP) multipliers for different Pokémon levels.
+    //! Level cap for Pokémon from eggs.
     uint8_t maxEggPlayerLevel{VALUE};
 
-    /// Level cap for Pokémon in the wild.
-    /// Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
+    //! Level cap for Pokémon in the wild.
+    //! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
     uint8_t maxEncounterPlayerLevel{VALUE};
 } playerLevel;
 
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
                 }
                 // Rarity
                 it = settings.find("rarity"); // exists only for legendary and mythic Pokemon
-                /// @todo most of the baby Pokemon can be identified using buddySize but not all
+                //! @todo most of the baby Pokemon can be identified using buddySize but not all
                 //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
                 if (it != settings.end() && *it == "POKEMON_RARITY_LEGENDARY")
                 {
@@ -204,23 +204,23 @@ R"(
 namespace PoGoCmp {
 
 )";
-    /// @todo Could the following be deduced somehow?
-    /// Seasonal - e.g. Delibird?
-    /// Regional - all region-exclusive?
-    /// Unrelease/Unobtainable - Pokemon not yet released
-    /// Baby - Obtainable only from eggs.
-    /// If not, maybe specify them manually.
+    //! @todo Could the following be deduced somehow?
+    //! Seasonal - e.g. Delibird?
+    //! Regional - all region-exclusive?
+    //! Unrelease/Unobtainable - Pokemon not yet released
+    //! Baby - Obtainable only from eggs.
+    //! If not, maybe specify them manually.
 
     output <<
 R"(enum class PokemonRarity : uint8_t
 {
-    /// Unspecified/invalid.
+    //! Unspecified/invalid.
     NONE,
-    /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
+    //! Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
     NORMAL,
-    /// Obtainable only from raids, cannot be placed in gyms.
+    //! Obtainable only from raids, cannot be placed in gyms.
     LEGENDARY,
-    /// Obtainability unclear, no mythic Pokemon released yet.
+    //! Obtainability unclear, no mythic Pokemon released yet.
     MYTHIC
 };
 
@@ -228,21 +228,21 @@ R"(enum class PokemonRarity : uint8_t
     output <<
 R"(const struct PlayerLevelSettings
 {
-    /// The required amount of XP to level up.
+    //! The required amount of XP to level up.
 )";
 
-//    /// Combat point (CP) multipliers for different Pokémon levels.
+//    //! Combat point (CP) multipliers for different Pokémon levels.
 //    std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
 //
-//    /// Level cap for Pokémon from eggs.
+//    //! Level cap for Pokémon from eggs.
 //    uint8_t maxEggPlayerLevel{VALUE};
 //
-//    /// Level cap for Pokémon in the wild.
-//    /// Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
+//    //! Level cap for Pokémon in the wild.
+//    //! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
 //    uint8_t maxEncounterPlayerLevel{VALUE};
 
 
-    output << indent << "/// Combat point (CP) multipliers for different Pokémon levels.\n";
+    output << indent << "//! Combat point (CP) multipliers for different Pokémon levels.\n";
     output << indent << "std::array<float, " << PlayerLevel.cpMultiplier.size() << "> cpMultiplier{{";
     const auto size = playerLevel.cpMultiplier.size();
     for (size_t i = 0; i < size; ++i)
@@ -268,25 +268,25 @@ R"(const struct PlayerLevelSettings
     output <<
 R"(struct PokemonSpecie
 {
-    /// Pokédex number.
+    //! Pokédex number.
     uint16_t number;
-    /// Base attack.
+    //! Base attack.
     uint16_t baseAtk;
-    /// Base defence.
+    //! Base defence.
     uint16_t baseDef;
-    /// Base stamina (a.k.a. HP).
+    //! Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokémon's ID/specie name, uppercase with underscores.
-    /// Use PokemonIdToName() to translate this into a proper name.
-    /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
-    /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
-    /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
+    //! Pokémon's ID/specie name, uppercase with underscores.
+    //! Use PokemonIdToName() to translate this into a proper name.
+    //! The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
+    //! but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
+    //! https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
     std::string id;
-    /// Primary type.
+    //! Primary type.
     PokemonType type;
-    /// Secondary type, if applicable.
+    //! Secondary type, if applicable.
     PokemonType type2;
-    /// Rarity type.
+    //! Rarity type.
     PokemonRarity rarity;
 };
 
@@ -306,7 +306,7 @@ R"(struct PokemonSpecie
     //};
 
     //output << "static const std::map<uint16_t, PokemonSpecie> PokemonByNumber {\n";
-    output << "/// Pokedex number - 1 can be used as the index to the array.\n";
+    output << "//! Pokedex number - 1 can be used as the index to the array.\n";
     // NOTE double-brace syntax needed for the array's initializer list ctor
     output << "static const std::array<PokemonSpecie, " << pokemonTable.size() << "> PokemonByNumber{{\n";
     for (const auto& it : pokemonTable)
@@ -319,7 +319,7 @@ R"(struct PokemonSpecie
     output << "}};\n\n";
 
     output <<
-R"(/// Case-insensitive string comparison.
+R"(//! Case-insensitive string comparison.
 static inline int CompareI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
@@ -331,7 +331,7 @@ static inline int CompareI(const char* str1, const char* str2)
 
 )";
 
-    output << "/// case-insensitive\n";
+    output << "//! case-insensitive\n";
     output << "static inline PokemonType StringToPokemonType(const char* str)\n";
     output << "{\n";
     for (auto type : pokemonTypes)
@@ -339,7 +339,7 @@ static inline int CompareI(const char* str1, const char* str2)
     output << indent << "return PokemonType::NONE;\n";
     output << "}\n\n";
 
-    output << "/// Returns all-uppercase name\n";
+    output << "//! Returns all-uppercase name\n";
     output << "static inline const char* PokemonTypeToString(PokemonType type)\n";
     output << "{\n";
     for (auto type : pokemonTypes)
@@ -349,8 +349,8 @@ static inline int CompareI(const char* str1, const char* str2)
 
     output <<
 R"(
-/// Case-insensitive.
-/// @return PokemonRarity::NONE if unknown string passed.
+//! Case-insensitive.
+//! @return PokemonRarity::NONE if unknown string passed.
 static inline PokemonRarity StringToPokemonRarity(const char* str)
 {
     if (CompareI(str, "LEGENDARY") == 0) return PokemonRarity::LEGENDARY;
@@ -359,7 +359,7 @@ static inline PokemonRarity StringToPokemonRarity(const char* str)
     return PokemonRarity::NONE;
 }
 
-/// Returns all-uppercase name.
+//! Returns all-uppercase name.
 static inline const char* PokemonRarityToString(PokemonRarity rarity)
 {
     if (rarity == PokemonRarity::LEGENDARY) return "LEGENDARY";
@@ -377,8 +377,8 @@ struct StringLessThanI
     }
 };
 
-/// Case-insensitive.
-/// @sa PokemonNameToId, PokemonIdToName
+//! Case-insensitive.
+//! @sa PokemonNameToId, PokemonIdToName
 static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByIdName {
 )";
     for (const auto& it : pokemonTable)
@@ -402,8 +402,8 @@ static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
 // - Flabébé -> Unknown at the moment, probably FLABEBE
 static const std::string EmptyString;
 
-/// Returns ID name corresponding the Pokémon's proper name, case-insensitive.
-/// @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
+//! Returns ID name corresponding the Pokémon's proper name, case-insensitive.
+//! @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
 static inline const std::string& PokemonNameToId(const Utf8::String& name)
 {
     // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
@@ -423,14 +423,14 @@ static inline const std::string& PokemonNameToId(const Utf8::String& name)
     }
 }
 
-/// Returns proper name corresponding the Pokémon's ID name.
-/// There are only a handful of Pokémon with special character's in their names:
-/// - Mr. Mime -> MR_MIME
-/// - Farfetch'd -> FARFETCHD
-/// - Ho-Oh -> HO_OH
-/// - Mime Jr. -> Unknown at the moment, probably MIME_JR
-/// - Flabébé -> Unknown at the moment, probably FLABEBE
-/// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+//! Returns proper name corresponding the Pokémon's ID name.
+//! There are only a handful of Pokémon with special character's in their names:
+//! - Mr. Mime -> MR_MIME
+//! - Farfetch'd -> FARFETCHD
+//! - Ho-Oh -> HO_OH
+//! - Mime Jr. -> Unknown at the moment, probably MIME_JR
+//! - Flabébé -> Unknown at the moment, probably FLABEBE
+//! - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
 static inline const Utf8::String& PokemonIdToName(const std::string& name)
 {
     if (CompareI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;

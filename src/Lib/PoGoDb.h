@@ -19,20 +19,20 @@ namespace PoGoCmp {
 
 enum class PokemonRarity : uint8_t
 {
-    /// Unspecified/invalid.
+    //! Unspecified/invalid.
     NONE,
-    /// Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
+    //! Can be obtained normally in the wild or from eggs, some are raid-exlusive though.
     NORMAL,
-    /// Obtainable only from raids, cannot be placed in gyms.
+    //! Obtainable only from raids, cannot be placed in gyms.
     LEGENDARY,
-    /// Obtainability unclear, no mythic Pokemon released yet.
+    //! Obtainability unclear, no mythic Pokemon released yet.
     MYTHIC
 };
 
 const struct PlayerLevelSettings
 {
-    /// The required amount of XP to level up.
-    /// Combat point (CP) multipliers for different Pokémon levels.
+    //! The required amount of XP to level up.
+    //! Combat point (CP) multipliers for different Pokémon levels.
     std::array<float, 40> cpMultiplier{{
         0.094f, 0.166398f, 0.215732f, 0.25572f, 0.29025f, 0.321088f, 0.349213f, 0.375236f, 0.399567f, 0.4225f,
         0.443108f, 0.462798f, 0.481685f, 0.499858f, 0.517394f, 0.534354f, 0.550793f, 0.566755f, 0.582279f, 0.5974f,
@@ -66,29 +66,29 @@ enum class PokemonType : uint8_t
 
 struct PokemonSpecie
 {
-    /// Pokédex number.
+    //! Pokédex number.
     uint16_t number;
-    /// Base attack.
+    //! Base attack.
     uint16_t baseAtk;
-    /// Base defence.
+    //! Base defence.
     uint16_t baseDef;
-    /// Base stamina (a.k.a. HP).
+    //! Base stamina (a.k.a. HP).
     uint16_t baseSta;
-    /// Pokémon's ID/specie name, uppercase with underscores.
-    /// Use PokemonIdToName() to translate this into a proper name.
-    /// The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
-    /// but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
-    /// https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
+    //! Pokémon's ID/specie name, uppercase with underscores.
+    //! Use PokemonIdToName() to translate this into a proper name.
+    //! The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
+    //! but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
+    //! https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
     std::string id;
-    /// Primary type.
+    //! Primary type.
     PokemonType type;
-    /// Secondary type, if applicable.
+    //! Secondary type, if applicable.
     PokemonType type2;
-    /// Rarity type.
+    //! Rarity type.
     PokemonRarity rarity;
 };
 
-/// Pokedex number - 1 can be used as the index to the array.
+//! Pokedex number - 1 can be used as the index to the array.
 static const std::array<PokemonSpecie, 386> PokemonByNumber{{
     { 1, 118, 118, 90, "BULBASAUR", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL },
     { 2, 151, 151, 120, "IVYSAUR", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL },
@@ -478,7 +478,7 @@ static const std::array<PokemonSpecie, 386> PokemonByNumber{{
     { 386, 1, 1, 1, "DEOXYS", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::MYTHIC },
 }};
 
-/// Case-insensitive string comparison.
+//! Case-insensitive string comparison.
 static inline int CompareI(const char* str1, const char* str2)
 {
 #ifdef _WIN32
@@ -488,7 +488,7 @@ static inline int CompareI(const char* str1, const char* str2)
 #endif
 }
 
-/// case-insensitive
+//! case-insensitive
 static inline PokemonType StringToPokemonType(const char* str)
 {
     if (CompareI(str, "BUG") == 0) return PokemonType::BUG;
@@ -512,7 +512,7 @@ static inline PokemonType StringToPokemonType(const char* str)
     return PokemonType::NONE;
 }
 
-/// Returns all-uppercase name
+//! Returns all-uppercase name
 static inline const char* PokemonTypeToString(PokemonType type)
 {
     if (type == PokemonType::BUG) return "BUG";
@@ -536,8 +536,8 @@ static inline const char* PokemonTypeToString(PokemonType type)
     return "NONE";
 }
 
-/// Case-insensitive.
-/// @return PokemonRarity::NONE if unknown string passed.
+//! Case-insensitive.
+//! @return PokemonRarity::NONE if unknown string passed.
 static inline PokemonRarity StringToPokemonRarity(const char* str)
 {
     if (CompareI(str, "LEGENDARY") == 0) return PokemonRarity::LEGENDARY;
@@ -546,7 +546,7 @@ static inline PokemonRarity StringToPokemonRarity(const char* str)
     return PokemonRarity::NONE;
 }
 
-/// Returns all-uppercase name.
+//! Returns all-uppercase name.
 static inline const char* PokemonRarityToString(PokemonRarity rarity)
 {
     if (rarity == PokemonRarity::LEGENDARY) return "LEGENDARY";
@@ -564,8 +564,8 @@ struct StringLessThanI
     }
 };
 
-/// Case-insensitive.
-/// @sa PokemonNameToId, PokemonIdToName
+//! Case-insensitive.
+//! @sa PokemonNameToId, PokemonIdToName
 static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByIdName {
     { "BULBASAUR", &PokemonByNumber[0] },
     { "IVYSAUR", &PokemonByNumber[1] },
@@ -967,8 +967,8 @@ static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
 // - Flabébé -> Unknown at the moment, probably FLABEBE
 static const std::string EmptyString;
 
-/// Returns ID name corresponding the Pokémon's proper name, case-insensitive.
-/// @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
+//! Returns ID name corresponding the Pokémon's proper name, case-insensitive.
+//! @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
 static inline const std::string& PokemonNameToId(const Utf8::String& name)
 {
     // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
@@ -988,14 +988,14 @@ static inline const std::string& PokemonNameToId(const Utf8::String& name)
     }
 }
 
-/// Returns proper name corresponding the Pokémon's ID name.
-/// There are only a handful of Pokémon with special character's in their names:
-/// - Mr. Mime -> MR_MIME
-/// - Farfetch'd -> FARFETCHD
-/// - Ho-Oh -> HO_OH
-/// - Mime Jr. -> Unknown at the moment, probably MIME_JR
-/// - Flabébé -> Unknown at the moment, probably FLABEBE
-/// - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+//! Returns proper name corresponding the Pokémon's ID name.
+//! There are only a handful of Pokémon with special character's in their names:
+//! - Mr. Mime -> MR_MIME
+//! - Farfetch'd -> FARFETCHD
+//! - Ho-Oh -> HO_OH
+//! - Mime Jr. -> Unknown at the moment, probably MIME_JR
+//! - Flabébé -> Unknown at the moment, probably FLABEBE
+//! - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
 static inline const Utf8::String& PokemonIdToName(const std::string& name)
 {
     if (CompareI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;

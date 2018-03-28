@@ -5,7 +5,7 @@
 #include <iostream>
 #include <locale>
 
-/// @todo Unicode output
+//! @todo Unicode output
 #define Assert(a, b) \
 if ((a) != (b)) \
 { std::cerr << "'" << a << "' did not map into '" << b << "'\n"; return EXIT_FAILURE; }

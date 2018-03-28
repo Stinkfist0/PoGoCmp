@@ -80,7 +80,7 @@ int EnableUnicodeStdIo()
     }
     return res;
 #else
-    /// @todo Should do the trick?  Test!
+    //! @todo Should do the trick?  Test!
     std::locale::global(std::locale(""));
     return 0;
 #endif
@@ -138,7 +138,7 @@ int CompareI(ByteArray str1, ByteArray str2)
     const auto wstr2 = ToWString(str2);
     return StrCmpIW(wstr1.c_str(), wstr2.c_str());
 #else
-    /// @todo strcasecmp() probably doesn't support UTF-8?
+    //! @todo strcasecmp() probably doesn't support UTF-8?
     return strcasecmp(str1, str2);
 #endif
 }
