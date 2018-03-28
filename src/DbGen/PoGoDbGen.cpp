@@ -25,6 +25,26 @@
 #include <ctime>
 #include <map>
 
+#define VALUE 0
+/*const*/ struct PlayerLevelSettingsTemp
+{
+    // rankNum skipped, seems uninteresting for now
+
+    /// The required amount of XP to level up.
+    std::vector<uint32_t> requiredExperience; //std::array<uint32_t, 40> requiredExperience;
+
+    /// Combat point (CP) multipliers for different Pokémon levels.
+    std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
+
+    /// Combat point (CP) multipliers for different Pokémon levels.
+    /// Level cap for Pokémon from eggs.
+    uint8_t maxEggPlayerLevel{VALUE};
+
+    /// Level cap for Pokémon in the wild.
+    /// Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
+    uint8_t maxEncounterPlayerLevel{VALUE};
+} playerLevel;
+
 std::string DateTimeOffsetString(std::time_t timestampS)
 {
     std::stringstream ss;
@@ -81,7 +101,12 @@ int main(int argc, char **argv)
         {
             std::string templateId = itemTemplate["templateId"];
             std::smatch matches;
-            if (std::regex_match(templateId, matches, typePattern))
+            if (templateId == "PLAYER_LEVEL_SETTINGS")
+            {
+                auto cpMultiplier = itemTemplate["playerLevel"]["cpMultiplier"];
+                playerLevel.cpMultiplier.assign(cpMultiplier.begin(), cpMultiplier.end());
+            }
+            else if (std::regex_match(templateId, matches, typePattern))
             {
                 pokemonTypes.insert(matches[1]);
             }
@@ -155,6 +180,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    const std::string indent{"    "};
+
     output  << "/** @file " << outputPath << "\n"
             << "    @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.\n"
             << "\n"
@@ -198,8 +225,36 @@ R"(enum class PokemonRarity : uint8_t
 };
 
 )";
+    output <<
+R"(const struct PlayerLevelSettings
+{
+    /// The required amount of XP to level up.
+)";
 
-    const std::string indent{"    "};
+//    /// Combat point (CP) multipliers for different Pokémon levels.
+//    std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
+//
+//    /// Level cap for Pokémon from eggs.
+//    uint8_t maxEggPlayerLevel{VALUE};
+//
+//    /// Level cap for Pokémon in the wild.
+//    /// Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
+//    uint8_t maxEncounterPlayerLevel{VALUE};
+
+
+    output << indent << "/// Combat point (CP) multipliers for different Pokémon levels.\n";
+    output << indent << "std::array<float, " << PlayerLevel.cpMultiplier.size() << "> cpMultiplier{{";
+    const auto size = playerLevel.cpMultiplier.size();
+    for (size_t i = 0; i < size; ++i)
+    {
+        if (i % 10 == 0) output << '\n' << indent << indent;
+        else output << " ";
+        output << playerLevel.cpMultiplier[i] << "f";
+        if (i < size - 1) output << ",";
+    }
+    output << "\n" << indent << "}};\n";
+    output << "} PlayerLevel;\n\n";
+
     const std::string typeNone{ "NONE" };
 
     output << "enum class PokemonType : uint8_t\n{\n";
@@ -253,7 +308,7 @@ R"(struct PokemonSpecie
     //output << "static const std::map<uint16_t, PokemonSpecie> PokemonByNumber {\n";
     output << "/// Pokedex number - 1 can be used as the index to the array.\n";
     // NOTE double-brace syntax needed for the array's initializer list ctor
-    output << "static const std::array<PokemonSpecie, " << pokemonTable.size() << "> PokemonByNumber {{\n";
+    output << "static const std::array<PokemonSpecie, " << pokemonTable.size() << "> PokemonByNumber{{\n";
     for (const auto& it : pokemonTable)
     {
         output << indent;

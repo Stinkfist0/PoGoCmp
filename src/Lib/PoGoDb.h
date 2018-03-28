@@ -29,6 +29,18 @@ enum class PokemonRarity : uint8_t
     MYTHIC
 };
 
+const struct PlayerLevelSettings
+{
+    /// The required amount of XP to level up.
+    /// Combat point (CP) multipliers for different Pokémon levels.
+    std::array<float, 40> cpMultiplier{{
+        0.094f, 0.166398f, 0.215732f, 0.25572f, 0.29025f, 0.321088f, 0.349213f, 0.375236f, 0.399567f, 0.4225f,
+        0.443108f, 0.462798f, 0.481685f, 0.499858f, 0.517394f, 0.534354f, 0.550793f, 0.566755f, 0.582279f, 0.5974f,
+        0.612157f, 0.626567f, 0.640653f, 0.654436f, 0.667934f, 0.681165f, 0.694144f, 0.706884f, 0.719399f, 0.7317f,
+        0.737769f, 0.743789f, 0.749761f, 0.755686f, 0.761564f, 0.767397f, 0.773187f, 0.778933f, 0.784637f, 0.7903f
+    }};
+} PlayerLevel;
+
 enum class PokemonType : uint8_t
 {
     NONE,
@@ -77,7 +89,7 @@ struct PokemonSpecie
 };
 
 /// Pokedex number - 1 can be used as the index to the array.
-static const std::array<PokemonSpecie, 386> PokemonByNumber {{
+static const std::array<PokemonSpecie, 386> PokemonByNumber{{
     { 1, 118, 118, 90, "BULBASAUR", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL },
     { 2, 151, 151, 120, "IVYSAUR", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL },
     { 3, 198, 198, 160, "VENUSAUR", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL },
