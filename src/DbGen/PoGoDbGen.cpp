@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     auto args = Utf8::ParseArguments(argc, argv);
     if (args.size() != 2)
     {
-        std::cerr << "Exactly two arguments required. Usage: PoGoCmpDbGen <inputJsonPath> <outputhPath>\n";
+        std::cerr << "Exactly two arguments required. Usage: PoGoDbGen <inputJsonPath> <outputCppPath>\n";
         return EXIT_FAILURE;
     }
 
