@@ -57,7 +57,7 @@ std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
     return out;
 }
 
-const std::vector<ProgramOption> programsOptions {
+const std::vector<ProgramOption> programsOptions{
     { "-h", "--help", L"Print help." },
     { "-v", "--version", L"Print version information and exit."},
     //{ "", "--verbose", L"Verbose log prints."},
@@ -70,8 +70,14 @@ const std::vector<ProgramOption> programsOptions {
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), \\n (new line), \\t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max.* CP), \\n (new line), \\t (tab)"
+        "Max. level and perfect IVs by default. See also --ivs and --level."
     },
+    {"", "--ivs",
+        L"Specify IVs of the Pokémon for the CP calculation: <attack><defense><stamina>, hexadecimal 0-F. "
+        L"E.g. 'A9F', perfect IVs 'FFF' by default."},
+    {"", "--level",
+        L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"},
     { "", "--rarity",
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
         "By default all rarities are included."},
@@ -175,7 +181,7 @@ void Log(const Utf8::String& msg)
 //! @param atk [0, 15], integer.
 //! @param def [0, 15], integer.
 //! @param sta [0, 15], integer.
-//! @param pkm [0, 15], integer.
+//! @param pkm Pokémon's base stats.
 //! @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
 //! @return < 0 on invalid input, > 0 otherwise
 int ComputeCp(float level, float atk, float def, float sta, const PoGoCmp::PokemonSpecie& pkm)
@@ -208,7 +214,7 @@ int MinCp(const PoGoCmp::PokemonSpecie& pkm)
 
 int MaxCp(const PoGoCmp::PokemonSpecie& pkm)
 {
-    return ComputeCp(40.f, 15, 15, 15, pkm);
+    return ComputeCp((float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15, pkm);
 }
 
 //! returns negative number if unknown criteria given
@@ -224,25 +230,35 @@ int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& pr
     else { return -1; }
 }
 
-Utf8::String PokemonToString(const PoGoCmp::PokemonSpecie& pkm, Utf8::String fmt, const std::string& sortCriteria)
+struct Pokemon// : PoGoCmp::PokemonSpecie
+{
+    //! Level [1,maxLevel], 0.5 steps.
+    float level;
+    //! Indivial value (IVs), each IV has value of [0,15].
+    uint8_t atk;
+    uint8_t def;
+    uint8_t sta;
+};
+
+Utf8::String PokemonToString(const Pokemon& pkm, const PoGoCmp::PokemonSpecie& base, Utf8::String fmt, const std::string& sortCriteria)
 {
     using namespace StringUtils;
-    const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type));
-    const auto type2 = pkm.type2 == PoGoCmp::PokemonType::NONE
-        ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(pkm.type2));
+    const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type));
+    const auto type2 = base.type2 == PoGoCmp::PokemonType::NONE
+        ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type2));
     const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
 
-    fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(pkm.number));
-    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(pkm.id)));
-    fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(pkm.baseAtk));
-    fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(pkm.baseDef));
-    fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(pkm.baseSta));
+    fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(base.number));
+    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(base.id)));
+    fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(base.baseAtk));
+    fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(base.baseDef));
+    fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(base.baseSta));
     fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
     fmt = std::regex_replace(fmt, std::regex("%T"), type);
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
-    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(pkm, sortCriteria)));
+    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(base, sortCriteria)));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
-    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(MaxCp(pkm)));
+    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(ComputeCp(pkm.level, pkm.atk, pkm.def, pkm.sta, base)));
     fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
     fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
@@ -412,6 +428,46 @@ int main(int argc, char **argv)
             }
         }
 
+        Pokemon pkm{};
+        pkm.level = 40.f;
+        pkm.atk = 15;
+        pkm.def = 15;
+        pkm.sta = 15;
+
+        if (opts.HasOption("--level")) {
+            auto level = opts.OptionValue("--level");
+            if (level.empty())
+                LogErrorAndExit("Value missing for --level.");
+
+            pkm.level = (float)std::stod(level);
+            if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
+                LogErrorAndExit("Not a valid level.");
+        }
+
+        if (opts.HasOption("--ivs"))
+        {
+            auto ivs = opts.OptionValue("--ivs");
+            if (ivs.empty())
+                LogErrorAndExit("Value missing for --ivs.");
+
+            if (ivs.size() != 3)
+                LogErrorAndExit("Value must consist of exactly three values.");
+
+            try
+            {
+                auto values = std::stoul(ivs, nullptr, 16);
+                pkm.atk = (values & 0xF00) >> 8;
+                pkm.def = (values & 0x0F0) >> 4;
+                pkm.sta = (values & 0x00F);
+                if (pkm.atk > 15 || pkm.def > 15 || pkm.sta > 15)
+                    LogErrorAndExit("IV cannot be higher than F (15).");
+            }
+            catch (const std::exception& e)
+            {
+                LogErrorAndExit(Concat("Failed to parse --ivs value '", ivs, "': ", e.what()));
+            }
+        }
+
         //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
 
         //std::vector<std::pair<PokedexRange, std::vector<PoGoCmp::PokemonSpecie>>> results;
@@ -451,11 +507,9 @@ int main(int argc, char **argv)
             }
         }
 
-        // oldSize == ...
         results.erase(std::remove_if(results.begin(), results.end(), [&rarities](const auto& pkm) {
             return std::find(rarities.begin(), rarities.end(), pkm.rarity) == rarities.end();
         }), results.end());
-        // if (verbose) log how many results removed
 
         const auto numMatches = (int)results.size();
             //std::accumulate(results.begin(), results.end(), 0,
@@ -472,9 +526,9 @@ int main(int argc, char **argv)
         {
             /* if (verbose) Log("Pokédex range " + std::to_string(result.first.first) + "-" +
                 std::to_string(result.first.second) + ":"); */
-
             // if (verbose) Utf8::Print(std::to_string(i+1) + ": ");
-            Utf8::Print(PokemonToString(results[i], format, sortCriteria));
+
+            Utf8::Print(PokemonToString(pkm, results[i], format, sortCriteria));
         }
 
         ret = EXIT_SUCCESS;
