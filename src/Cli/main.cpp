@@ -1,7 +1,6 @@
 ﻿#include "../Lib/PoGoCmp.h"
 #include "../Lib/PoGoDb.h"
-#include "../Lib/StringUtils.h"
-#include "../Lib/Utf8.h"
+#include "ProgramOptions.h"
 
 #include <iostream>
 #include <string>
@@ -21,142 +20,6 @@ const PokedexRange gen1Range{ 1, 151 };
 const PokedexRange gen2Range{ 152, 251 };
 const PokedexRange gen3Range{ 252, 386 };
 const PokedexRange maxRange{ 1, PoGoCmp::PokemonByNumber.size() };
-
-//template <typename ValueType>
-struct ProgramOption
-{
-    ProgramOption() {}
-    //! type is deduced automatically from the shortName or longName.
-    ProgramOption(const std::string& sn, const std::string& ln, const std::wstring& h) :
-        shortName(sn), longName(ln), help(Utf8::FromWString(h))
-    {
-        type = IsArg(shortName) || IsArg(longName) ? Arg : Cmd;
-    }
-    //! Commands have no prefix, arguments have either "-" or "--" prefix.
-    //! @todo could support also /-prefix, also e.g. would be nice to ignore/warn about e.g. ---prefix
-    static bool IsArg(const std::string &str)
-    {
-        return str.find_first_of("-") == 0 && !StringUtils::IsNumber(str);
-    }
-
-    enum Type : bool { Cmd, Arg };
-
-    Type type;
-    std::string shortName;
-    std::string longName;
-    Utf8::String help;
-
-    //!std::string longHelp; // when help <command> is used?
-    //bool multiple; // are multiple same options supported
-    // ValueType value
-};
-
-std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
-{
-    out << opt.shortName << (opt.longName.empty() ? "" : ",") << opt.longName << ": " << opt.help;
-    return out;
-}
-
-const std::vector<ProgramOption> programsOptions{
-    { "-h", "--help", L"Print help." },
-    { "-v", "--version", L"Print version information and exit."},
-    //{ "", "--verbose", L"Verbose log prints."},
-    //{ "-a", "--ascending", L"Sort the results in ascending order (default)." },
-    { "-d", "--descending", L"Sort the results in descending order (ascending by default)." },
-    { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
-        "Multiple options supported."},
-    { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
-    { "-f", "--format",
-        L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
-        "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max.* CP), \\n (new line), \\t (tab)"
-        "Max. level and perfect IVs by default. See also --ivs and --level."
-    },
-    {"", "--ivs",
-        L"Specify IVs of the Pokémon for the CP calculation: <attack><defense><stamina>, hexadecimal 0-F. "
-        L"E.g. 'A9F', perfect IVs 'FFF' by default."},
-    {"", "--level",
-        L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"},
-    { "", "--rarity",
-        L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
-        "By default all rarities are included."},
-    // Commands
-    { "sort", "", L"Sort the Pokémon by certain criteria: "
-        "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
-    },
-    { "info", "", L"Print information about the available data set." }
-};
-
-struct ProgamOptionMap
-{
-    using StringVector = std::vector<std::string>;
-    //! (shortName, longName)
-    //using NamePair = std::pair <std::string, std::string>;
-
-    ProgamOptionMap(const StringVector& args) : args(args) {}
-    //! @param argv The program invokation argument argv[0] is ignored.
-    ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/)
-        : ProgamOptionMap({ argv + 1, argv + argc })
-    {
-        //for (const auto& opt : options)
-        //{
-        //    opts[std::make_pair(opt.shortName, opt.longName)] = OptionValue(opt.shortName, opt.longName);
-        //}
-    }
-
-    bool HasOption(const std::string& shortName, const std::string& longName) const
-    {
-        return std::count_if(args.begin(), args.end(),
-            [&](const auto& arg) { return arg == shortName || arg == longName; }) > 0;
-    }
-
-    bool HasOption(const std::string& name) const { return HasOption(name, name); }
-
-    std::string OptionValue(const std::string& shortName, const std::string& longName) const
-    {
-        auto optIt = std::find_if(args.begin(), args.end(), [&](const auto& arg) {
-            return arg == shortName || arg == longName;
-        });
-        auto valueIt = optIt != args.end() ? optIt + 1 : args.end();
-        return IsValue(valueIt) ? *valueIt : "";
-    }
-
-    std::string OptionValue(const std::string& name) const { return OptionValue(name, name); }
-
-    StringVector OptionValues(const std::string& shortName, const std::string& longName) const
-    {
-        StringVector ret;
-        auto it = args.begin();
-        while (it != args.end())
-        {
-            auto optIt = std::find_if(it, args.end(), [&](const auto& arg) {
-                return arg == shortName || arg == longName;
-            });
-            auto valueIt = optIt != args.end() ? optIt + 1 : args.end();
-            if (IsValue(valueIt))
-                ret.push_back(*valueIt);
-            it = valueIt;
-            if (it != args.end())
-                ++it;
-        }
-        return ret;
-    }
-
-    StringVector OptionValues(const std::string& name) const { return OptionValues(name, name); }
-
-    //! @param valueIt Iterator to program option which should be considered a value.
-    bool IsValue(StringVector::const_iterator it) const
-    {
-        if (it == args.begin() || it == args.end()) return false;
-        auto prevIt = (it - 1);
-        return (prevIt == args.begin() || ProgramOption::IsArg(*prevIt)) && !ProgramOption::IsArg(*it);
-    }
-    //! The original arguments
-    std::vector<std::string> args;
-    //! Program options and their values
-    //std::map<NamePair, std::string> opts;
-};
 
 void LogE(const Utf8::String& msg)
 {
@@ -263,6 +126,37 @@ Utf8::String PokemonToString(const Pokemon& pkm, const PoGoCmp::PokemonSpecie& b
     fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
 }
+
+const std::vector<ProgramOption> programsOptions{
+    { "-h", "--help", L"Print help." },
+    { "-v", "--version", L"Print version information and exit."},
+    //{ "", "--verbose", L"Verbose log prints."},
+    //{ "-a", "--ascending", L"Sort the results in ascending order (default)." },
+    { "-d", "--descending", L"Sort the results in descending order (ascending by default)." },
+    { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
+        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
+        "Multiple options supported."},
+    { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
+    { "-f", "--format",
+        L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
+        "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max.* CP), \\n (new line), \\t (tab)"
+        "Max. level and perfect IVs by default. See also --ivs and --level."
+    },
+    {"", "--ivs",
+        L"Specify IVs of the Pokémon for the CP calculation: <attack><defense><stamina>, hexadecimal 0-F. "
+        L"E.g. 'A9F', perfect IVs 'FFF' by default."},
+    {"", "--level",
+        L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"},
+    { "", "--rarity",
+        L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
+        "By default all rarities are included."},
+    // Commands
+    { "sort", "", L"Sort the Pokémon by certain criteria: "
+        "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
+    },
+    { "info", "", L"Print information about the available data set." }
+};
 
 //! @todo indentation
 void PrintHelp()
