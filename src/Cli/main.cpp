@@ -328,14 +328,22 @@ int main(int argc, char **argv)
         pkm.def = 15;
         pkm.sta = 15;
 
-        if (opts.HasOption("--level")) {
+        if (opts.HasOption("--level"))
+        {
             auto level = opts.OptionValue("--level");
             if (level.empty())
                 LogErrorAndExit("Value missing for --level.");
 
-            pkm.level = (float)std::stod(level);
-            if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
-                LogErrorAndExit("Not a valid level.");
+            try
+            {
+                pkm.level = (float)std::stod(level);
+                if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
+                    throw std::runtime_error("Level not withing valid range.");
+            }
+            catch (const std::exception& e)
+            {
+                LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
+            }
         }
 
         if (opts.HasOption("--ivs"))
