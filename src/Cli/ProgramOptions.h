@@ -4,7 +4,9 @@
 #pragma once
 
 #include "../Lib/StringUtils.h"
-#include "../Lib/utf8.h"
+#include "../Lib/Utf8.h"
+
+#include <algorithm>
 
 //template <typename ValueType>
 struct ProgramOption
