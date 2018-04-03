@@ -344,8 +344,11 @@ int main(int argc, char **argv)
             if (ivs.empty())
                 LogErrorAndExit("Value missing for --ivs.");
 
-            if (ivs.size() != 3)
-                LogErrorAndExit("Value must consist of exactly three values.");
+            if (std::count_if(ivs.begin(), ivs.end(),
+                [](auto c) { return std::isxdigit(c, std::locale::classic()); }) != 3)
+            {
+                LogErrorAndExit("Value must consist of exactly three hexadecimal digits.");
+            }
 
             try
             {
@@ -353,8 +356,6 @@ int main(int argc, char **argv)
                 pkm.atk = (values & 0xF00) >> 8;
                 pkm.def = (values & 0x0F0) >> 4;
                 pkm.sta = (values & 0x00F);
-                if (pkm.atk > 15 || pkm.def > 15 || pkm.sta > 15)
-                    LogErrorAndExit("IV cannot be higher than F (15).");
             }
             catch (const std::exception& e)
             {
