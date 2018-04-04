@@ -40,14 +40,14 @@ void Log(const Utf8::String& msg)
 //! @todo Move CP functions to the PoGoCmp API
 
 //! https://pokemongo.gamepress.gg/pokemon-stats-advanced
+//! @param base Pokémon's base stats.
 //! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
 //! @param atk [0, 15], integer.
 //! @param def [0, 15], integer.
 //! @param sta [0, 15], integer.
-//! @param pkm Pokémon's base stats.
 //! @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
 //! @return < 0 on invalid input, > 0 otherwise
-int ComputeCp(float level, float atk, float def, float sta, const PoGoCmp::PokemonSpecie& pkm)
+int ComputeCp(const PoGoCmp::PokemonSpecie& base, float level, float atk, float def, float sta)
 {
     const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
     if (level  < 1 || level > numLevels) return -1;
@@ -64,20 +64,54 @@ int ComputeCp(float level, float atk, float def, float sta, const PoGoCmp::Pokem
     auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
     auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
     auto cpm = levelFract != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
-    atk = pkm.baseAtk + atk;
-    def = pkm.baseDef + def;
-    sta = pkm.baseSta + sta;
+    atk = base.baseAtk + atk;
+    def = base.baseDef + def;
+    sta = base.baseSta + sta;
     return (int)std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f);
 }
 
-int MinCp(const PoGoCmp::PokemonSpecie& pkm)
+struct Pokemon// : PoGoCmp::PokemonSpecie
 {
-    return ComputeCp(1, 0, 0, 0, pkm);
+    //! Level [1,maxLevel], 0.5 steps.
+    float level;
+    //! Indivial value (IVs), each IV has value of [0,15].
+    uint8_t atk;
+    uint8_t def;
+    uint16_t sta;
+};
+
+int ComputeCp(const PoGoCmp::PokemonSpecie& base, const Pokemon& pkm)
+{
+    return ComputeCp(base, pkm.level, pkm.atk, pkm.def, pkm.sta);
 }
 
-int MaxCp(const PoGoCmp::PokemonSpecie& pkm)
+const std::array<Pokemon, 5> raidLevels{{
+    { 21, 15, 15, 600 },
+    { 25, 15, 15, 1800 },
+    { 30, 15, 15, 3000 },
+    { 40, 15, 15, 7500 },
+    { 40, 15, 15, 12500 }
+}};
+
+//! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
+//! \todo Weird that raid bosses would have different formulat without CPM.
+//! Investigate if ComputeCp() could made work somehow.
+int ComputeRaidBossCp(const PoGoCmp::PokemonSpecie& base, const Pokemon& pkm)
 {
-    return ComputeCp((float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15, pkm);
+    auto atk = base.baseAtk + pkm.atk;
+    auto def = base.baseDef + pkm.def;
+    auto sta = pkm.sta; // raid bosses have a fixed stamina and base stamina is ignored
+    return (int)std::floor(atk * std::sqrt(def) * std::sqrt(sta) / 10.f);
+}
+
+int MinCp(const PoGoCmp::PokemonSpecie& base)
+{
+    return ComputeCp(base, 1, 0, 0, 0);
+}
+
+int MaxCp(const PoGoCmp::PokemonSpecie& base)
+{
+    return ComputeCp(base, (float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15);
 }
 
 //! returns negative number if unknown criteria given
@@ -93,17 +127,11 @@ int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& pr
     else { return -1; }
 }
 
-struct Pokemon// : PoGoCmp::PokemonSpecie
-{
-    //! Level [1,maxLevel], 0.5 steps.
-    float level;
-    //! Indivial value (IVs), each IV has value of [0,15].
-    uint8_t atk;
-    uint8_t def;
-    uint8_t sta;
-};
-
-Utf8::String PokemonToString(const Pokemon& pkm, const PoGoCmp::PokemonSpecie& base, Utf8::String fmt, const std::string& sortCriteria)
+Utf8::String PokemonToString(
+    const PoGoCmp::PokemonSpecie& base,
+    //const Pokemon& pkm,
+    int cp, Utf8::String fmt,
+    const std::string& sortCriteria)
 {
     using namespace StringUtils;
     const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type));
@@ -121,7 +149,7 @@ Utf8::String PokemonToString(const Pokemon& pkm, const PoGoCmp::PokemonSpecie& b
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
     fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(base, sortCriteria)));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
-    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(ComputeCp(pkm.level, pkm.atk, pkm.def, pkm.sta, base)));
+    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(cp));
     fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
     fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
@@ -139,7 +167,7 @@ const std::vector<ProgramOption> programsOptions{
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
-        "%nu (number), %na (name), %a (attack), %d (defense), %s (stamina), %T (primary type), %t (secondary type) "
+        "%nu (number), %na (name), %a (base attack), %d (base defense), %s (base stamina), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max.* CP), \\n (new line), \\t (tab)"
         "Max. level and perfect IVs by default. See also --ivs and --level."
     },
@@ -148,6 +176,9 @@ const std::vector<ProgramOption> programsOptions{
         L"E.g. 'A9F', perfect IVs 'FFF' by default."},
     {"", "--level",
         L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"},
+    {"", "--raidLevel",
+        L"Specify raid level for the Pokémon's CP calculation to simulate if the Pokémon would be a raid boss. "
+        L"Overrides possible --level and --ivs options."},
     { "", "--rarity",
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
         "By default all rarities are included."},
@@ -338,7 +369,7 @@ int main(int argc, char **argv)
             {
                 pkm.level = (float)std::stod(level);
                 if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
-                    throw std::runtime_error("Level not withing valid range.");
+                    throw std::runtime_error("Level not within valid range.");
             }
             catch (const std::exception& e)
             {
@@ -371,6 +402,35 @@ int main(int argc, char **argv)
             }
         }
 
+        const bool isRaidBoss = opts.HasOption("--raidLevel");
+        if (isRaidBoss)
+        {
+            auto level = opts.OptionValue("--raidLevel");
+            if (level.empty())
+                LogErrorAndExit("Value missing for --raidLevel.");
+
+            if (opts.HasOption("--level"))
+                Log("--level value is ignored due to --raidLevel.");
+            if (opts.HasOption("--ivs"))
+                Log("--ivs value is ignored due to --raidLevel.");
+
+            try
+            {
+                auto raidLevel = (float)std::stod(level);
+                if (raidLevel < 1 || raidLevel > raidLevels.size())
+                    throw std::runtime_error("Level not within valid range.");
+                const auto& bossStats = raidLevels[(size_t)raidLevel - 1];
+                pkm.level = bossStats.level;
+                pkm.atk = bossStats.atk;
+                pkm.def = bossStats.def;
+                pkm.sta = bossStats.sta;
+            }
+            catch (const std::exception& e)
+            {
+                LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
+            }
+        }
+
         //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
 
         //std::vector<std::pair<PokedexRange, std::vector<PoGoCmp::PokemonSpecie>>> results;
@@ -381,7 +441,7 @@ int main(int argc, char **argv)
             auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
             auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
             std::vector<PoGoCmp::PokemonSpecie> result(dataBegin, dataBegin + dataSize);
-            std::sort(result.begin(), result.end(), sortFunction);
+            //std::sort(result.begin(), result.end(), sortFunction);
             //results.push_back({ range, result });
             results.insert(results.end(), result.begin(), result.end());
         }
@@ -391,16 +451,15 @@ int main(int argc, char **argv)
             [](const auto& a, const auto& b) { return a.number == b.number; }),
             results.end());
 
-        std::vector<PoGoCmp::PokemonRarity> rarities;
+        std::vector<PoGoCmp::PokemonRarity> rarities{
+            PoGoCmp::PokemonRarity::NORMAL,
+            PoGoCmp::PokemonRarity::LEGENDARY,
+            PoGoCmp::PokemonRarity::MYTHIC
+        };
         auto rarityStrings = opts.OptionValues("--rarity");
-        if (rarityStrings.empty())
+        if (!rarityStrings.empty())
         {
-            rarities.push_back(PoGoCmp::PokemonRarity::NORMAL);
-            rarities.push_back(PoGoCmp::PokemonRarity::LEGENDARY);
-            rarities.push_back(PoGoCmp::PokemonRarity::MYTHIC);
-        }
-        else
-        {
+            rarities.clear();
             for (const auto& rarityStr : rarityStrings)
             {
                 auto rarity = PoGoCmp::StringToPokemonRarity(rarityStr.c_str());
@@ -427,11 +486,13 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < numMatches && i < numResults; ++i)
         {
+            const auto& base = results[i];
+            int cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
             /* if (verbose) Log("Pokédex range " + std::to_string(result.first.first) + "-" +
                 std::to_string(result.first.second) + ":"); */
             // if (verbose) Utf8::Print(std::to_string(i+1) + ": ");
 
-            Utf8::Print(PokemonToString(pkm, results[i], format, sortCriteria));
+            Utf8::Print(PokemonToString(base, cp, format, sortCriteria));
         }
 
         ret = EXIT_SUCCESS;
