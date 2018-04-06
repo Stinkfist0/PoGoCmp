@@ -25,26 +25,6 @@
 #include <ctime>
 #include <map>
 
-#define VALUE 0
-/*const*/ struct PlayerLevelSettingsTemp
-{
-    // rankNum skipped, seems uninteresting for now
-
-    //! The required amount of XP to level up.
-    std::vector<uint32_t> requiredExperience; //std::array<uint32_t, 40> requiredExperience;
-
-    //! Combat point (CP) multipliers for different Pokémon levels.
-    std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
-
-    //! Combat point (CP) multipliers for different Pokémon levels.
-    //! Level cap for Pokémon from eggs.
-    uint8_t maxEggPlayerLevel{VALUE};
-
-    //! Level cap for Pokémon in the wild.
-    //! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
-    uint8_t maxEncounterPlayerLevel{VALUE};
-} playerLevel;
-
 std::string DateTimeOffsetString(std::time_t timestampS)
 {
     std::stringstream ss;
@@ -83,6 +63,15 @@ int main(int argc, char **argv)
     std::set<std::string> pokemonTypes;
     std::string dateTimeOffset;
 
+    struct PlayerLevelSettingsTemp
+    {
+        // rankNum skipped, seems uninteresting for now
+        std::vector<uint32_t> requiredExperience;  // array used when serialized
+        std::vector<float> cpMultiplier;  // array used when serialized
+        size_t maxEggPlayerLevel{0}; // uint8_t used when serialized
+        size_t maxEncounterPlayerLevel{0}; // uint8_t used when serialized
+    } playerLevel;
+
     using namespace nlohmann;
     try
     {
@@ -103,8 +92,13 @@ int main(int argc, char **argv)
             std::smatch matches;
             if (templateId == "PLAYER_LEVEL_SETTINGS")
             {
-                auto cpMultiplier = itemTemplate["playerLevel"]["cpMultiplier"];
+                auto settings = itemTemplate["playerLevel"];
+                auto requiredExperience = settings["requiredExperience"];
+                playerLevel.requiredExperience.assign(requiredExperience.begin(), requiredExperience.end());
+                auto cpMultiplier = settings["cpMultiplier"];
                 playerLevel.cpMultiplier.assign(cpMultiplier.begin(), cpMultiplier.end());
+                playerLevel.maxEggPlayerLevel = settings["maxEggPlayerLevel"];
+                playerLevel.maxEncounterPlayerLevel = settings["maxEncounterPlayerLevel"];
             }
             else if (std::regex_match(templateId, matches, typePattern))
             {
@@ -225,34 +219,35 @@ R"(enum class PokemonRarity : uint8_t
 };
 
 )";
-    output <<
-R"(const struct PlayerLevelSettings
-{
-    //! The required amount of XP to level up.
-)";
+    auto writeArray = [&](const char* valueType, const char* name, const auto& vec, int valuesPerRow, const char* literalPostfix)
+    {
+        output << indent << "std::array<" << valueType << ", " << vec.size() << "> " << name << "{{";
+        auto size = vec.size();
+        for (size_t i = 0; i < size; ++i)
+        {
+            if (i % valuesPerRow == 0) output << '\n' << indent << indent;
+            else output << ' ';
+            output << vec[i] << literalPostfix;
+            if (i < size - 1) output << ',';
+        }
+        output << '\n' << indent << "}};\n";
+    };
 
-//    //! Combat point (CP) multipliers for different Pokémon levels.
-//    std::vector<float> cpMultiplier; //std::array<float, 40> cpMultiplier;
-//
-//    //! Level cap for Pokémon from eggs.
-//    uint8_t maxEggPlayerLevel{VALUE};
-//
-//    //! Level cap for Pokémon in the wild.
-//    //! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
-//    uint8_t maxEncounterPlayerLevel{VALUE};
+    output << "const struct PlayerLevelSettings\n";
+    output << "{\n";
+    output << indent << "//! The required amount of XP to level up.\n";
+    writeArray("uint32_t", "requiredExperience", playerLevel.requiredExperience, 10, "");
 
+    output << indent << "//! Level cap for Pokémon from eggs.\n";
+    output << indent << "uint8_t  maxEggPlayerLevel{" << playerLevel.maxEggPlayerLevel << "};\n";
+
+    output << indent << "//! Level cap for Pokémon in the wild.\n";
+    output << indent << "//! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.\n";
+    output << indent << "uint8_t  maxEncounterPlayerLevel{" << playerLevel.maxEncounterPlayerLevel << "};\n";
 
     output << indent << "//! Combat point (CP) multipliers for different Pokémon levels.\n";
-    output << indent << "std::array<float, " << PlayerLevel.cpMultiplier.size() << "> cpMultiplier{{";
-    const auto size = playerLevel.cpMultiplier.size();
-    for (size_t i = 0; i < size; ++i)
-    {
-        if (i % 10 == 0) output << '\n' << indent << indent;
-        else output << " ";
-        output << playerLevel.cpMultiplier[i] << "f";
-        if (i < size - 1) output << ",";
-    }
-    output << "\n" << indent << "}};\n";
+    writeArray("float", "cpMultiplier", playerLevel.cpMultiplier, 10, "f");
+
     output << "} PlayerLevel;\n\n";
 
     const std::string typeNone{ "NONE" };

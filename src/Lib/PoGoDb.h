@@ -32,6 +32,17 @@ enum class PokemonRarity : uint8_t
 const struct PlayerLevelSettings
 {
     //! The required amount of XP to level up.
+    std::array<uint32_t, 40> requiredExperience{{
+        0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000,
+        55000, 65000, 75000, 85000, 100000, 120000, 140000, 160000, 185000, 210000,
+        260000, 335000, 435000, 560000, 710000, 900000, 1100000, 1350000, 1650000, 2000000,
+        2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000
+    }};
+    //! Level cap for Pokémon from eggs.
+    uint8_t  maxEggPlayerLevel{20};
+    //! Level cap for Pokémon in the wild.
+    //! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.
+    uint8_t  maxEncounterPlayerLevel{30};
     //! Combat point (CP) multipliers for different Pokémon levels.
     std::array<float, 40> cpMultiplier{{
         0.094f, 0.166398f, 0.215732f, 0.25572f, 0.29025f, 0.321088f, 0.349213f, 0.375236f, 0.399567f, 0.4225f,
