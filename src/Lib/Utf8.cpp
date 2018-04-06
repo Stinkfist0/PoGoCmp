@@ -1,6 +1,6 @@
 /**
-    @file   ProcessUtils.cpp
-    @brief  Process/IO utilities. */
+    @file   Utf8.cpp
+    @brief  UTF-8 Process/IO/String utilities. */
 
 #include "Utf8.h"
 
@@ -10,12 +10,12 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include "MinimalWin32.h"
-#undef NOUSER   // All USER defines and routines
-#undef NONLS    // All NLS defines and routines
-#undef NOMSG    // typedef MSG and associated routines
+#undef NOUSER
+#undef NONLS
+#undef NOMSG
 #include <windows.h> // WideCharToMultiByte & MultiByteToWideChar
 #include <shellapi.h> // CommandLineToArgvW
-#include <shlwapi.h>
+#include <shlwapi.h> // StrCmpIW
 #pragma comment(lib, "shlwapi.lib")
 #else
 #include <strings.h> // strcasecmp()
@@ -122,7 +122,7 @@ std::vector<String> ParseArguments(int argc, char** argv, bool skipFirst)
     PWSTR *argvw = CommandLineToArgvW(GetCommandLine(), &argc);
     for (int i = skipFirst ? 1 : 0; i < argc; ++i)
     {
-        args.push_back(FromWString(std::wstring{ argvw[i] }));
+        args.push_back(FromWString(argvw[i]));
     }
     LocalFree(argvw);
     return args;
