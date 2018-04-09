@@ -25,6 +25,8 @@
 #include <ctime>
 #include <map>
 
+using namespace std::string_literals;
+
 std::string DateTimeOffsetString(std::time_t timestampS)
 {
     std::stringstream ss;
@@ -63,14 +65,23 @@ int main(int argc, char **argv)
     std::set<std::string> pokemonTypes;
     std::string dateTimeOffset;
 
+    // When serializing structs, std::vectors are written as std::arrays.
     struct PlayerLevelSettingsTemp
     {
         // rankNum skipped, seems uninteresting for now
-        std::vector<uint32_t> requiredExperience;  // array used when serialized
-        std::vector<float> cpMultiplier;  // array used when serialized
-        size_t maxEggPlayerLevel{0}; // uint8_t used when serialized
-        size_t maxEncounterPlayerLevel{0}; // uint8_t used when serialized
+        std::vector<int/*uint32_t*/> requiredExperience;
+        std::vector<float> cpMultiplier;
+        size_t/*uint8_t*/ maxEggPlayerLevel{0};
+        size_t/*uint8_t*/ maxEncounterPlayerLevel{0};
     } playerLevel;
+
+    struct PokemonUpgradeSettingsTemp
+    {
+        int/*uint8_t*/ upgradesPerLevel;
+        int/*uint8_t*/ allowedLevelsAbovePlayer;
+        std::vector<int/*uint8_t*/> candyCost;
+        std::vector<int/*uint16_t*/> stardustCost;
+    } pokemonUpgrades;
 
     using namespace nlohmann;
     try
@@ -99,6 +110,23 @@ int main(int argc, char **argv)
                 playerLevel.cpMultiplier.assign(cpMultiplier.begin(), cpMultiplier.end());
                 playerLevel.maxEggPlayerLevel = settings["maxEggPlayerLevel"];
                 playerLevel.maxEncounterPlayerLevel = settings["maxEncounterPlayerLevel"];
+            }
+            else if (templateId == "POKEMON_UPGRADE_SETTINGS")
+            {
+                //"templateId": "POKEMON_UPGRADE_SETTINGS",
+                //"pokemonUpgrades": {
+                //  "upgradesPerLevel": 2,
+                //  "allowedLevelsAbovePlayer": 2,
+                //  "candyCost": [ ... ],
+                //  "stardustCost": [ ... ]
+                //}
+                auto settings = itemTemplate["pokemonUpgrades"];
+                pokemonUpgrades.upgradesPerLevel = settings["upgradesPerLevel"];
+                pokemonUpgrades.allowedLevelsAbovePlayer = settings["allowedLevelsAbovePlayer"];
+                auto candyCost = settings["candyCost"];
+                pokemonUpgrades.candyCost.assign(candyCost.begin(), candyCost.end());
+                auto stardustCost = settings["stardustCost"];
+                pokemonUpgrades.stardustCost.assign(stardustCost.begin(), stardustCost.end());
             }
             else if (std::regex_match(templateId, matches, typePattern))
             {
@@ -219,6 +247,7 @@ R"(enum class PokemonRarity : uint8_t
 };
 
 )";
+
     auto writeArray = [&](const char* valueType, const char* name, const auto& vec, int valuesPerRow, const char* literalPostfix)
     {
         output << indent << "std::array<" << valueType << ", " << vec.size() << "> " << name << "{{";
@@ -249,6 +278,35 @@ R"(enum class PokemonRarity : uint8_t
     writeArray("float", "cpMultiplier", playerLevel.cpMultiplier, 10, "f");
 
     output << "} PlayerLevel;\n\n";
+
+    auto vectorToString = [&](const auto& vec, int valuesPerRow, const char* literalPostfix)
+    {
+        std::stringstream ss;
+        ss << "{{";
+        auto size = vec.size();
+        for (size_t i = 0; i < size; ++i)
+        {
+            if (i % valuesPerRow == 0) ss << '\n' << indent << indent;
+            else ss << ' ';
+            ss << vec[i] << literalPostfix;
+            if (i < size - 1) ss << ',';
+        }
+        ss << '\n' << indent << "}};";
+        return ss.str();
+    };
+
+    output <<
+        "const struct PokemonUpgradeSettings\n" +
+        "{\n"s +
+        indent + "//! How many power-ups a a level consists of.\n" +
+        indent + "uint8_t upgradesPerLevel{" + std::to_string(pokemonUpgrades.upgradesPerLevel) + "};\n" +
+        indent + "//! Trainer level + allowedLevelsAbovePlayer is the maximum level for the Pokémon.\n" +
+        indent + "uint8_t allowedLevelsAbovePlayer{" + std::to_string(pokemonUpgrades.allowedLevelsAbovePlayer) + "};\n" +
+        indent + "//! The candy cost to upgrade from one level to the next one.\n" +
+        indent + "std::vector<uint8_t> candyCost" + vectorToString(pokemonUpgrades.candyCost, 10, "") + "\n" +
+        indent + "//! The stardust cost to upgrade from the one level to the next one.\n" +
+        indent + "std::vector<uint16_t> stardustCost" + vectorToString(pokemonUpgrades.stardustCost, 10, "") + "\n" +
+        "} PokemonUpgrades;\n\n";
 
     const std::string typeNone{ "NONE" };
 

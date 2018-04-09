@@ -52,6 +52,28 @@ const struct PlayerLevelSettings
     }};
 } PlayerLevel;
 
+const struct PokemonUpgradeSettings
+{
+    //! How many power-ups a a level consists of.
+    uint8_t upgradesPerLevel{2};
+    //! Trainer level + allowedLevelsAbovePlayer is the maximum level for the Pokémon.
+    uint8_t allowedLevelsAbovePlayer{2};
+    //! The candy cost to upgrade from one level to the next one.
+    std::vector<uint8_t> candyCost{{
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+        6, 6, 8, 8, 10, 10, 12, 12, 15, 15
+    }};
+    //! The stardust cost to upgrade from the one level to the next one.
+    std::vector<uint16_t> stardustCost{{
+        200, 200, 400, 400, 600, 600, 800, 800, 1000, 1000,
+        1300, 1300, 1600, 1600, 1900, 1900, 2200, 2200, 2500, 2500,
+        3000, 3000, 3500, 3500, 4000, 4000, 4500, 4500, 5000, 5000,
+        6000, 6000, 7000, 7000, 8000, 8000, 9000, 9000, 10000, 10000
+    }};
+} PokemonUpgrades;
+
 enum class PokemonType : uint8_t
 {
     NONE,
