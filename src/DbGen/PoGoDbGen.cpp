@@ -202,6 +202,11 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    const auto numLevels = playerLevel.cpMultiplier.size();
+    assert(numLevels == playerLevel.requiredExperience.size());
+    assert(numLevels == pokemonUpgrades.candyCost.size());
+    assert(numLevels == pokemonUpgrades.stardustCost.size());
+
     const std::string indent{"    "};
 
     output  << "/** @file " << outputPath << "\n"
@@ -248,37 +253,6 @@ R"(enum class PokemonRarity : uint8_t
 
 )";
 
-    auto writeArray = [&](const char* valueType, const char* name, const auto& vec, int valuesPerRow, const char* literalPostfix)
-    {
-        output << indent << "std::array<" << valueType << ", " << vec.size() << "> " << name << "{{";
-        auto size = vec.size();
-        for (size_t i = 0; i < size; ++i)
-        {
-            if (i % valuesPerRow == 0) output << '\n' << indent << indent;
-            else output << ' ';
-            output << vec[i] << literalPostfix;
-            if (i < size - 1) output << ',';
-        }
-        output << '\n' << indent << "}};\n";
-    };
-
-    output << "const struct PlayerLevelSettings\n";
-    output << "{\n";
-    output << indent << "//! The required amount of XP to level up.\n";
-    writeArray("uint32_t", "requiredExperience", playerLevel.requiredExperience, 10, "");
-
-    output << indent << "//! Level cap for Pokémon from eggs.\n";
-    output << indent << "uint8_t  maxEggPlayerLevel{" << playerLevel.maxEggPlayerLevel << "};\n";
-
-    output << indent << "//! Level cap for Pokémon in the wild.\n";
-    output << indent << "//! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.\n";
-    output << indent << "uint8_t  maxEncounterPlayerLevel{" << playerLevel.maxEncounterPlayerLevel << "};\n";
-
-    output << indent << "//! Combat point (CP) multipliers for different Pokémon levels.\n";
-    writeArray("float", "cpMultiplier", playerLevel.cpMultiplier, 10, "f");
-
-    output << "} PlayerLevel;\n\n";
-
     auto vectorToString = [&](const auto& vec, int valuesPerRow, const char* literalPostfix)
     {
         std::stringstream ss;
@@ -296,6 +270,20 @@ R"(enum class PokemonRarity : uint8_t
     };
 
     output <<
+        "const struct PlayerLevelSettings\n" +
+        "{\n"s +
+        indent << "//! The required amount of XP to level up.\n" +
+        indent + "std::array<uint32_t, " + std::to_string(numLevels) + "> requiredExperience" + vectorToString(playerLevel.requiredExperience, 10, "") + "\n" +
+        indent + "//! Level cap for Pokémon from eggs.\n" +
+        indent + "uint8_t  maxEggPlayerLevel{" << playerLevel.maxEggPlayerLevel << "};\n" +
+        indent + "//! Level cap for Pokémon in the wild.\n" +
+        indent + "//! Additional WeatherBonus.cpBaseLevelBonus can be added to this for wild encounters.\n" +
+        indent + "uint8_t  maxEncounterPlayerLevel{" << playerLevel.maxEncounterPlayerLevel << "};\n" +
+        indent + "//! Combat point (CP) multipliers for different Pokémon levels.\n" +
+        indent + "std::array<float, " + std::to_string(numLevels) + "> cpMultiplier" + vectorToString(playerLevel.cpMultiplier, 10, "f") + "\n" +
+        "} PlayerLevel;\n\n";
+
+    output <<
         "const struct PokemonUpgradeSettings\n" +
         "{\n"s +
         indent + "//! How many power-ups a a level consists of.\n" +
@@ -303,9 +291,9 @@ R"(enum class PokemonRarity : uint8_t
         indent + "//! Trainer level + allowedLevelsAbovePlayer is the maximum level for the Pokémon.\n" +
         indent + "uint8_t allowedLevelsAbovePlayer{" + std::to_string(pokemonUpgrades.allowedLevelsAbovePlayer) + "};\n" +
         indent + "//! The candy cost to upgrade from one level to the next one.\n" +
-        indent + "std::vector<uint8_t> candyCost" + vectorToString(pokemonUpgrades.candyCost, 10, "") + "\n" +
+        indent + "std::array<uint8_t, " + std::to_string(numLevels) + "> candyCost" + vectorToString(pokemonUpgrades.candyCost, 10, "") + "\n" +
         indent + "//! The stardust cost to upgrade from the one level to the next one.\n" +
-        indent + "std::vector<uint16_t> stardustCost" + vectorToString(pokemonUpgrades.stardustCost, 10, "") + "\n" +
+        indent + "std::array<uint16_t, " + std::to_string(numLevels) + "> stardustCost" + vectorToString(pokemonUpgrades.stardustCost, 10, "") + "\n" +
         "} PokemonUpgrades;\n\n";
 
     const std::string typeNone{ "NONE" };
