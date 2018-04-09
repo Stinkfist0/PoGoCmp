@@ -6,9 +6,24 @@
 #include <string>
 #include <cstring>
 #include <locale>
+#include <sstream>
 
 namespace StringUtils
 {
+
+enum SplitOptions : bool { RemoveEmptyEntries, KeepEmptyEntries };
+
+std::vector<std::string> Split(const std::string &s, char delim, SplitOptions opts)
+{
+    std::vector<std::string> entries;
+    std::istringstream stream{ s };
+    for (std::string entry; std::getline(stream, entry, delim);)
+    {
+        if (opts == SplitOptions::KeepEmptyEntries || !entry.empty())
+            entries.push_back(entry);
+    }
+   return entries;
+}
 
 static inline void SnakeCaseToTitleCase(std::string &str)
 {
