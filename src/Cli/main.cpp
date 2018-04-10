@@ -13,13 +13,6 @@
 #include <cmath>
 
 const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt CP %cp\\n" };
-//! Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
-using PokedexRange = std::pair<size_t, size_t>;
-//! @todo generate values for these in PoGoCmpDb.h
-const PokedexRange gen1Range{ 1, 151 };
-const PokedexRange gen2Range{ 152, 251 };
-const PokedexRange gen3Range{ 252, 386 };
-const PokedexRange maxRange{ 1, PoGoCmp::PokemonByNumber.size() };
 
 void LogE(const Utf8::String& msg)
 {
@@ -70,33 +63,15 @@ int ComputeCp(const PoGoCmp::PokemonSpecie& base, float level, float atk, float 
     return (int)std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f);
 }
 
-struct Pokemon// : PoGoCmp::PokemonSpecie
-{
-    //! Level [1,maxLevel], 0.5 steps.
-    float level;
-    //! Indivial value (IVs), each IV has value of [0,15].
-    uint8_t atk;
-    uint8_t def;
-    uint16_t sta;
-};
-
-int ComputeCp(const PoGoCmp::PokemonSpecie& base, const Pokemon& pkm)
+int ComputeCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
 {
     return ComputeCp(base, pkm.level, pkm.atk, pkm.def, pkm.sta);
 }
 
-const std::array<Pokemon, 5> raidLevels{{
-    { 21, 15, 15, 600 },
-    { 25, 15, 15, 1800 },
-    { 30, 15, 15, 3000 },
-    { 40, 15, 15, 7500 },
-    { 40, 15, 15, 12500 }
-}};
-
 //! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
 //! \todo Weird that raid bosses would have different formulat without CPM.
 //! Investigate if ComputeCp() could made work somehow.
-int ComputeRaidBossCp(const PoGoCmp::PokemonSpecie& base, const Pokemon& pkm)
+int ComputeRaidBossCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
 {
     auto atk = base.baseAtk + pkm.atk;
     auto def = base.baseDef + pkm.def;
@@ -239,10 +214,13 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
+    using namespace StringUtils;
+    using namespace PoGoCmp;
+
     //! @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
-        Log("Available Pokedex range: " + std::to_string(maxRange.first) + "-" + std::to_string(maxRange.second));
+        Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
         Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
         return EXIT_SUCCESS;
     }
@@ -252,8 +230,6 @@ int main(int argc, char **argv)
         PrintHelp();
         return EXIT_SUCCESS;
     }
-
-    using namespace StringUtils;
 
     int ret = EXIT_FAILURE;
     if (opts.HasOption("sort"))
@@ -286,10 +262,10 @@ int main(int argc, char **argv)
             // If first == second, only a single Pokémon is wanted.
             PokedexRange range;
             const auto winclude = Utf8::ToWString(include);
-            if (winclude == L"all") { range = maxRange; }
-            else if (winclude == L"gen1") { range = gen1Range; }
-            else if (winclude == L"gen2") { range = gen2Range; }
-            else if (winclude == L"gen3") { range = gen3Range; }
+            if (winclude == L"all") { range = MaxRange; }
+            else if (winclude == L"gen1") { range = Gen1Range; }
+            else if (winclude == L"gen2") { range = Gen2Range; }
+            else if (winclude == L"gen3") { range = Gen3Range; }
             else if (std::regex_match(winclude, rangeMatches, rangePattern))
             {
                 try
@@ -317,9 +293,9 @@ int main(int argc, char **argv)
                         LogErrorAndExit("Range's min. (" + std::to_string(range.first) + ") cannot be greater than max. ("
                             + std::to_string(range.second) + ")");
                     }
-                    if (range.second > maxRange.second)
+                    if (range.second > MaxRange.second)
                     {
-                        LogErrorAndExit("Range's max. cannot be than " + std::to_string(maxRange.second));
+                        LogErrorAndExit("Range's max. cannot be than " + std::to_string(MaxRange.second));
                     }
                 }
                 catch (const std::exception& e)
@@ -427,13 +403,9 @@ int main(int argc, char **argv)
             try
             {
                 auto raidLevel = std::stof(level);
-                if (raidLevel < 1 || raidLevel > raidLevels.size())
+                if (raidLevel < 1 || raidLevel > RaidLevels.size())
                     throw std::runtime_error("Level not within valid range.");
-                const auto& bossStats = raidLevels[(size_t)raidLevel - 1];
-                pkm.level = bossStats.level;
-                pkm.atk = bossStats.atk;
-                pkm.def = bossStats.def;
-                pkm.sta = bossStats.sta;
+                pkm = RaidLevels[(size_t)raidLevel - 1];
             }
             catch (const std::exception& e)
             {
@@ -509,7 +481,7 @@ int main(int argc, char **argv)
     }
     else if (opts.HasOption("powerup"))
     {
-        auto powerupRange = StringUtils::Split(opts.OptionValue("powerup"), ',', StringUtils::RemoveEmptyEntries);
+        auto powerupRange = Split(opts.OptionValue("powerup"), ',', StringUtils::RemoveEmptyEntries);
         if (powerupRange.size() != 2)
             LogErrorAndExit("Power-up range must consist of two comma-separated numbers.");
 

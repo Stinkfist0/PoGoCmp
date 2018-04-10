@@ -569,6 +569,33 @@ static inline const char* PokemonTypeToString(PokemonType type)
     return "NONE";
 }
 
+//! Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
+using PokedexRange = std::pair<size_t, size_t>;
+const PokedexRange Gen1Range{ 1, 151 };
+const PokedexRange Gen2Range{ 152, 251 };
+const PokedexRange Gen3Range{ 252, 386 };
+const PokedexRange MaxRange{ 1, PoGoCmp::PokemonByNumber.size() };
+
+//! Properties of individual Pokémon.
+struct Pokemon
+{
+    //! Level [1,maxLevel], 0.5 steps.
+    float level;
+    //! Indivial value (IVs), each IV has value of [0,15].
+    uint8_t atk;
+    uint8_t def;
+    //! @note For raid bosses this is used to store the arbitrary HP value instead of IV value.
+    uint16_t sta;
+};
+
+const std::array<Pokemon, 5> RaidLevels{{
+    { 21, 15, 15, 600 },
+    { 25, 15, 15, 1800 },
+    { 30, 15, 15, 3000 },
+    { 40, 15, 15, 7500 },
+    { 40, 15, 15, 12500 }
+}};
+
 //! Case-insensitive.
 //! @return PokemonRarity::NONE if unknown string passed.
 static inline PokemonRarity StringToPokemonRarity(const char* str)
