@@ -56,14 +56,14 @@ int ComputeCp(const PoGoCmp::PokemonSpecie& base, float level, float atk, float 
     if (sta < 0 || sta > 15) return -1;
 
     float levelIdx;
-    auto levelFract = std::modf(level, &levelIdx);
-    if (levelFract != 0.f && levelFract != 0.5f) return -1;
+    auto levelFact = std::modf(level, &levelIdx);
+    if (levelFact != 0.f && levelFact != 0.5f) return -1;
     levelIdx -= 1;
     auto nextLevelIdx = std::min(levelIdx + 1, numLevels -1);
     auto cpmBase = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)levelIdx];
     auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
     auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
-    auto cpm = levelFract != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
+    auto cpm = levelFact != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
     atk = base.baseAtk + atk;
     def = base.baseDef + def;
     sta = base.baseSta + sta;
@@ -183,8 +183,13 @@ const std::vector<ProgramOption> programsOptions{
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
         "By default all rarities are included."},
     // Commands
-    { "sort", "", L"Sort the Pokémon by certain criteria: "
+    { "sort", "",
+        L"Sort the Pokémon by certain criteria: "
         "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
+    },
+    { "powerup", "",
+        L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
+        "'powerup 15.5,31.5'"
     },
     { "info", "", L"Print information about the available data set." }
 };
@@ -202,6 +207,11 @@ void PrintHelp()
         if (opt.type == ProgramOption::Arg)
             ss << "  " << opt << "\n";
     Utf8::PrintLine(ss.str());
+}
+
+bool Equals(float a, float b, float eps = 1e-5f)
+{
+    return std::abs(a - b) < eps;
 }
 
 int main(int argc, char **argv)
@@ -243,6 +253,8 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
+    using namespace StringUtils;
+
     int ret = EXIT_FAILURE;
     if (opts.HasOption("sort"))
     {
@@ -255,8 +267,6 @@ int main(int argc, char **argv)
             if (lval < 0 || rval < 0) LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
             return cmp(lval, rval);
         };
-
-        using namespace StringUtils;
 
         // E.g. "16,32", or "bulbasaur,ivysaur", or "250". The names can contain following
         // Unicode characters: ♀ (\u2640), ♂ (\u2642), é (\u00e9), É (\u00c9).
@@ -367,7 +377,7 @@ int main(int argc, char **argv)
 
             try
             {
-                pkm.level = (float)std::stod(level);
+                pkm.level = std::stof(level);
                 if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
                     throw std::runtime_error("Level not within valid range.");
             }
@@ -416,7 +426,7 @@ int main(int argc, char **argv)
 
             try
             {
-                auto raidLevel = (float)std::stod(level);
+                auto raidLevel = std::stof(level);
                 if (raidLevel < 1 || raidLevel > raidLevels.size())
                     throw std::runtime_error("Level not within valid range.");
                 const auto& bossStats = raidLevels[(size_t)raidLevel - 1];
@@ -495,6 +505,52 @@ int main(int argc, char **argv)
             Utf8::Print(PokemonToString(base, cp, format, sortCriteria));
         }
 
+        ret = EXIT_SUCCESS;
+    }
+    else if (opts.HasOption("powerup"))
+    {
+        auto powerupRange = StringUtils::Split(opts.OptionValue("powerup"), ',', StringUtils::RemoveEmptyEntries);
+        if (powerupRange.size() != 2)
+            LogErrorAndExit("Power-up range must consist of two comma-separated numbers.");
+
+        try
+        {
+            auto begin = std::stof(powerupRange[0]) - 1;
+            auto end = std::stof(powerupRange[1]) - 1;
+            if (begin < 0 || end >= PoGoCmp::PokemonUpgrades.candyCost.size())
+                LogErrorAndExit("Range out of bounds.");
+            if (end < begin)
+                LogErrorAndExit("Range's end cannot be greater than range's begin.");
+            if (Equals(begin, end))
+                LogErrorAndExit("Range's begin and end cannot be equal.");
+
+            const auto step = 1.f / PoGoCmp::PokemonUpgrades.upgradesPerLevel;
+            float dummy;
+            const auto beginFract = std::modf(begin, &dummy);
+            if (!Equals(beginFract, 0.f) && !Equals(beginFract, step))
+                LogErrorAndExit("Invalid factorial for range's begin.");
+            const auto endFract = std::modf(end, &dummy);
+            if (!Equals(endFract, 0.f) && !Equals(endFract, step))
+                LogErrorAndExit("Invalid factorial for range's end.");
+
+            const auto& candy = PoGoCmp::PokemonUpgrades.candyCost;
+            const auto& dust = PoGoCmp::PokemonUpgrades.stardustCost;
+            int candyTotal{}, dustTotal{};
+            for (float i = begin; i < end; i += step)
+            {
+                auto idx = (size_t)std::floor(i);
+                candyTotal += candy[idx];
+                dustTotal += dust[idx];
+            }
+
+            Log("Power-up costs from level " + powerupRange[0] + " to " + powerupRange[1] + ":");
+            Log(" candy: " + std::to_string(candyTotal));
+            Log(" stardust: " + std::to_string(dustTotal));
+        }
+        catch(const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Not a valid range: ", e.what()));
+        }
         ret = EXIT_SUCCESS;
     }
 
