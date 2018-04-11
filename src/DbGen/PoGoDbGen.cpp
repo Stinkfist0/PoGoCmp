@@ -369,7 +369,7 @@ R"(struct PokemonSpecie
             << ", " << std::quoted(pkm.id) << ", PokemonType::" << PokemonTypeToString(pkm.type)
             << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", PokemonRarity::"
             << PokemonRarityToString(pkm.rarity) << ", " << (int)pkm.buddyDistance << ", "
-            << pkm.femalePercent << ", " << pkm.malePercent << " }";
+            << pkm.malePercent << ", " << pkm.femalePercent << " }";
     };
 
     //auto writePokemonMap = [&](const auto& key, const PokemonSpecie& pkm)
