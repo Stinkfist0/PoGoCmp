@@ -94,6 +94,7 @@ int main(int argc, char **argv)
         dateTimeOffset = DateTimeOffsetString(timestampS);
         std::cout << "Input file's timestamp " << dateTimeOffset << "\n";
 
+        const std::regex spawnIdPattern{"SPAWN_V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "SPAWN_V0122_POKEMON_MR_MIME"
         const std::regex idPattern{"V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "V0122_POKEMON_MR_MIME"
         const std::regex typePattern{"POKEMON_TYPE_(\\w+)"}; // e.g. "POKEMON_TYPE_PSYCHIC"
 
@@ -113,13 +114,6 @@ int main(int argc, char **argv)
             }
             else if (templateId == "POKEMON_UPGRADE_SETTINGS")
             {
-                //"templateId": "POKEMON_UPGRADE_SETTINGS",
-                //"pokemonUpgrades": {
-                //  "upgradesPerLevel": 2,
-                //  "allowedLevelsAbovePlayer": 2,
-                //  "candyCost": [ ... ],
-                //  "stardustCost": [ ... ]
-                //}
                 auto settings = itemTemplate["pokemonUpgrades"];
                 pokemonUpgrades.upgradesPerLevel = settings["upgradesPerLevel"];
                 pokemonUpgrades.allowedLevelsAbovePlayer = settings["allowedLevelsAbovePlayer"];
@@ -132,14 +126,53 @@ int main(int argc, char **argv)
             {
                 pokemonTypes.insert(matches[1]);
             }
+            else if (std::regex_match(templateId, matches, spawnIdPattern))
+            {
+                // "Spawn" (gender) information comes before the main information.
+                PokemonSpecie pkm{};
+                pkm.number = (uint16_t)std::stoi(matches[1]);
+                pkm.id = itemTemplate["genderSettings"]["pokemon"];
+                auto gender = itemTemplate["genderSettings"]["gender"];
+                auto malePercent = gender.find("malePercent");
+                if (malePercent != gender.end())
+                    pkm.malePercent = *malePercent;
+                auto femalePercent = gender.find("femalePercent");
+                if (femalePercent != gender.end())
+                    pkm.femalePercent = *femalePercent;
+                auto genderlessPercent = gender.find("genderlessPercent");
+                if (genderlessPercent != gender.end())
+                    pkm.malePercent = pkm.femalePercent = 0.f;
+                pkm.malePercent *= 100;
+                pkm.femalePercent *= 100;
+                //! @todo Need to take forms into consideration. For now only insert the main entry.
+                //! Unown (29, same stats, 27 released currently)
+                //! Castform (4, same stas, different moves)
+                //! Deoxys (4, completely different)
+                if (pokemonTable.find(pkm.number) == pokemonTable.end())
+                {
+                    pokemonTable[pkm.number] = pkm;
+                }
+                else
+                {
+                    std::cout << pkm.number << " " << /*pkm.id*/matches[2] << " ignored\n";
+                }
+            }
             else if (std::regex_match(templateId, matches, idPattern))
             {
                 assert(!pokemonTypes.empty());
 
                 const auto& settings = itemTemplate["pokemonSettings"];
-                PokemonSpecie pkm{};
-                pkm.number = (uint16_t)std::stoi(matches[1]);
-                pkm.id = settings["pokemonId"];//matches[2];
+                auto number = (uint16_t)std::stoi(matches[1]);
+                auto id = settings["pokemonId"];//matches[2];
+                auto& pkm = pokemonTable[number];
+                assert(pkm.number == number);
+                assert(pkm.id == id);
+                if (pkm.baseAtk || pkm.baseDef || pkm.baseSta)
+                {
+                    // Stats already filled, this a new form, skip (normal forms are first in the data).
+                    continue;
+                }
+
                 pkm.baseAtk = settings["stats"]["baseAttack"];
                 pkm.baseDef = settings["stats"]["baseDefense"];
                 pkm.baseSta = settings["stats"]["baseStamina"];
@@ -181,18 +214,10 @@ int main(int argc, char **argv)
                 }
                 assert(pkm.rarity != PokemonRarity::NONE);
 
-                // TODO Need to take forms into consideration. For now only insert the main entry.
-                // Unown (29, same stats, 27 released currently)
-                // Castform (4, same stas, different moves)
-                // Deoxys (4, completely different)
-                if (pokemonTable.find(pkm.number) == pokemonTable.end())
-                {
-                    pokemonTable[pkm.number] = pkm;
-                }
-                else
-                {
-                    std::cout << pkm.number << " " << pkm.id << " ignored\n";
-                }
+                // kmBuddyDistance is stored as double but is always a whole number
+                double buddyDistance = settings["kmBuddyDistance"];
+                pkm.buddyDistance = (uint8_t)buddyDistance;
+                assert(pkm.buddyDistance == buddyDistance);
             }
         }
     }
@@ -329,6 +354,11 @@ R"(struct PokemonSpecie
     PokemonType type2;
     //! Rarity type.
     PokemonRarity rarity;
+    //! How much tracked buddy walking is required for a candy, in kilometers.
+    uint8_t buddyDistance;
+    //! If both malePercent and femalePercent are 0, it means the Pokémon is genderless.
+    float malePercent;
+    float femalePercent;
 };
 
 )";
@@ -338,7 +368,8 @@ R"(struct PokemonSpecie
         output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
             << ", " << std::quoted(pkm.id) << ", PokemonType::" << PokemonTypeToString(pkm.type)
             << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", PokemonRarity::"
-            << PokemonRarityToString(pkm.rarity) << " }";
+            << PokemonRarityToString(pkm.rarity) << ", " << (int)pkm.buddyDistance << ", "
+            << pkm.femalePercent << ", " << pkm.malePercent << " }";
     };
 
     //auto writePokemonMap = [&](const auto& key, const PokemonSpecie& pkm)

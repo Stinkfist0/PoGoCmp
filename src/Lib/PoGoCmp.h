@@ -56,6 +56,11 @@ struct PokemonSpecie
     PokemonType type;
     //! Secondary type, if applicable.
     PokemonType type2;
+    //! How much tracked buddy walking is required for a candy, in kilometers.
+    uint8_t buddyDistance;
+    //! If both malePercent and femalePercent are 0, it means the Pokémon is genderless.
+    float malePercent;
+    float femalePercent;
 };
 
 #ifdef __cplusplus
