@@ -89,17 +89,40 @@ int MaxCp(const PoGoCmp::PokemonSpecie& base)
     return ComputeCp(base, (float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15);
 }
 
-//! returns negative number if unknown criteria given
-int PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
+bool Equals(float a, float b, float eps = 1e-5f) { return std::abs(a - b) < eps; }
+bool IsZero(float a, float eps = 1e-5f) { return Equals(a, 0, eps); }
+
+//! returns NAN if unknown criteria given
+float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
     if (prop.empty() || prop == "number") { return pkm.number; }
     else if (prop ==  "atk" || prop == "attack") { return pkm.baseAtk; }
     else if (prop ==  "def" || prop == "defense") { return pkm.baseDef; }
     else if (prop ==  "sta" || prop ==  "hp" || prop == "stamina") { return pkm.baseSta; }
-    else if (prop == "bulk") { return pkm.baseSta * pkm.baseDef; }
-    else if (prop == "total") { return pkm.baseAtk + pkm.baseDef + pkm.baseSta ; }
-    else if (prop == "cp") { return MaxCp(pkm); }
-    else { return -1; }
+    else if (prop == "bulk") { return float(pkm.baseSta * pkm.baseDef); }
+    else if (prop == "total") { return float(pkm.baseAtk + pkm.baseDef + pkm.baseSta); }
+    else if (prop == "cp") { return float(MaxCp(pkm)); }
+    else if (prop == "gender") { return IsZero(pkm.malePercent) && IsZero(pkm.femalePercent) ? INFINITY : pkm.malePercent; }
+    else { return NAN; }
+}
+
+std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.str(); };
+
+Utf8::String FormatGender(float malePercent, float femalePercent)
+{
+    std::wstring genderText = L"-";
+    if (!IsZero(malePercent))
+    {
+        genderText = Utf8::ToWString(FloatToString(malePercent)) + L" % ♂";
+    }
+    if (!IsZero(femalePercent))
+    {
+        if (IsZero(malePercent))
+            genderText = Utf8::ToWString(FloatToString(femalePercent)) + L" % ♀";
+        else
+            genderText += L" " + Utf8::ToWString(FloatToString(femalePercent)) + L" % ♀";
+    }
+    return Utf8::FromWString(genderText);
 }
 
 Utf8::String PokemonToString(
@@ -122,9 +145,12 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
     fmt = std::regex_replace(fmt, std::regex("%T"), type);
     fmt = std::regex_replace(fmt, std::regex("%t"), type2);
-    fmt = std::regex_replace(fmt, std::regex("%o"), std::to_string(PropertyValueByName(base, sortCriteria)));
-    //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
+    fmt = std::regex_replace(fmt, std::regex("%o"), FloatToString(PropertyValueByName(base, sortCriteria)));
     fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(cp));
+    fmt = std::regex_replace(fmt, std::regex("%b"), std::to_string(base.buddyDistance));
+    //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
+    fmt = std::regex_replace(fmt, std::regex("%g"), FormatGender(base.malePercent, base.femalePercent));
+
     fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
     fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
     return fmt;
@@ -143,7 +169,8 @@ const std::vector<ProgramOption> programsOptions{
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %a (base attack), %d (base defense), %s (base stamina), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max.* CP), \\n (new line), \\t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %b (buddy distance, km), "
+        "(%g gender ratio) \\n (new line), \\t (tab)"
         "Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {"", "--ivs",
@@ -160,7 +187,7 @@ const std::vector<ProgramOption> programsOptions{
     // Commands
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
-        "number (default), attack/atk, defense/def, stamina/sta/hp', bulk (def*sta), or total(atk+def+sta)."
+        "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), or gender."
     },
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
@@ -182,11 +209,6 @@ void PrintHelp()
         if (opt.type == ProgramOption::Arg)
             ss << "  " << opt << "\n";
     Utf8::PrintLine(ss.str());
-}
-
-bool Equals(float a, float b, float eps = 1e-5f)
-{
-    return std::abs(a - b) < eps;
 }
 
 int main(int argc, char **argv)
@@ -235,12 +257,12 @@ int main(int argc, char **argv)
     if (opts.HasOption("sort"))
     {
         const bool ascending = !opts.HasOption("-d", "--descending");
-        using Cmp = std::function<bool(int, int)>;
+        using Cmp = std::function<bool(float, float)>;
         const auto cmp = ascending ? Cmp(std::less<>()) : Cmp(std::greater<>());
         const std::string sortCriteria = opts.OptionValue("sort");
         auto sortFunction = [&cmp, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
             auto lval = PropertyValueByName(lhs, sortCriteria), rval = PropertyValueByName(rhs, sortCriteria);
-            if (lval < 0 || rval < 0) LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
+            if (std::isnan(lval) || std::isnan(rval)) LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
             return cmp(lval, rval);
         };
 
