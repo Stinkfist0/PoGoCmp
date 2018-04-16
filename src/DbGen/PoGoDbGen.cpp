@@ -25,6 +25,10 @@
 #include <ctime>
 #include <map>
 
+//! @todo shared utility file for these
+bool Equals(float a, float b, float eps = 1e-5f) { return std::abs(a - b) < eps; }
+bool IsZero(float a, float eps = 1e-5f) { return Equals(a, 0, eps); }
+
 using namespace std::string_literals;
 
 std::string DateTimeOffsetString(std::time_t timestampS)
@@ -83,6 +87,10 @@ int main(int argc, char **argv)
         std::vector<int/*uint16_t*/> stardustCost;
     } pokemonUpgrades;
 
+    const size_t numTypes = 18;
+    //float typeEffectiveness[numTypes][numTypes]{};
+    std::array<std::array<float, numTypes>, numTypes> typeEffectiveness{{}};
+
     using namespace nlohmann;
     try
     {
@@ -124,12 +132,18 @@ int main(int argc, char **argv)
             }
             else if (std::regex_match(templateId, matches, typePattern))
             {
+                const auto type = StringToPokemonType(matches[1].str().c_str());
+                std::vector<float> attackScalar = itemTemplate["typeEffective"]["attackScalar"];
+                for (size_t j = 0; j < numTypes; ++j)
+                    typeEffectiveness[(size_t)type][j] = attackScalar[j];
+
                 pokemonTypes.insert(matches[1]);
             }
             else if (std::regex_match(templateId, matches, spawnIdPattern))
             {
                 // "Spawn" (gender) information comes before the main information.
                 PokemonSpecie pkm{};
+                pkm.type = pkm.type2 = PokemonType::NONE;
                 pkm.number = (uint16_t)std::stoi(matches[1]);
                 pkm.id = itemTemplate["genderSettings"]["pokemon"];
                 auto gender = itemTemplate["genderSettings"]["gender"];
@@ -159,8 +173,6 @@ int main(int argc, char **argv)
             }
             else if (std::regex_match(templateId, matches, idPattern))
             {
-                assert(!pokemonTypes.empty());
-
                 const auto& settings = itemTemplate["pokemonSettings"];
                 auto number = (uint16_t)std::stoi(matches[1]);
                 auto id = settings["pokemonId"];//matches[2];
@@ -306,10 +318,10 @@ R"(enum class PokemonRarity : uint8_t
         indent + "uint8_t  maxEncounterPlayerLevel{" << playerLevel.maxEncounterPlayerLevel << "};\n" +
         indent + "//! Combat point (CP) multipliers for different Pokémon levels.\n" +
         indent + "std::array<float, " + std::to_string(numLevels) + "> cpMultiplier" + vectorToString(playerLevel.cpMultiplier, 10, "f") + "\n" +
-        "} PlayerLevel;\n\n";
+        "} PlayerLevel;\n";
 
     output <<
-        "const struct PokemonUpgradeSettings\n" +
+        "\nconst struct PokemonUpgradeSettings\n" +
         "{\n"s +
         indent + "//! How many power-ups a a level consists of.\n" +
         indent + "uint8_t upgradesPerLevel{" + std::to_string(pokemonUpgrades.upgradesPerLevel) + "};\n" +
@@ -319,20 +331,51 @@ R"(enum class PokemonRarity : uint8_t
         indent + "std::array<uint8_t, " + std::to_string(numLevels) + "> candyCost" + vectorToString(pokemonUpgrades.candyCost, 10, "") + "\n" +
         indent + "//! The stardust cost to upgrade from the one level to the next one.\n" +
         indent + "std::array<uint16_t, " + std::to_string(numLevels) + "> stardustCost" + vectorToString(pokemonUpgrades.stardustCost, 10, "") + "\n" +
-        "} PokemonUpgrades;\n\n";
+        "} PokemonUpgrades;\n";
 
     const std::string typeNone{ "NONE" };
 
-    output << "enum class PokemonType : uint8_t\n{\n";
-    output << indent << typeNone << ",\n";
-    for (auto type : pokemonTypes)
-    {
-        output << indent << type << ",\n";
-    }
-    output << "};\n\n";
+    //output << "enum class PokemonType : uint8_t\n{\n";
+    //output << indent << typeNone << ",\n";
+    //for (auto type : pokemonTypes)
+    //{
+    //    output << indent << type << ",\n";
+    //}
+    //output << "};\n\n";
 
+    // It's very unlikely that new types are added anytime soon.
+    // Fairy type was added in gen6 but it was incorporated in PoGo since day 1.
+    assert(pokemonTypes.size() == numTypes);
+
+    // Indices taken from https://github.com/BrunnerLivio/pokemongo-json-pokedex/blob/master/src/app.settings.ts
     output <<
-R"(struct PokemonSpecie
+        R"(
+//! The numerical value of the enum is used to access type-effectiveness table.
+enum class PokemonType : int8_t
+{
+    NONE = -1,
+    NORMAL,
+    FIGHTING,
+    FLYING,
+    POISON,
+    GROUND,
+    ROCK,
+    BUG,
+    GHOST,
+    STEEL,
+    FIRE,
+    WATER,
+    GRASS,
+    ELECTRIC,
+    PSYCHIC,
+    ICE,
+    DRAGON,
+    DARK,
+    FAIRY,
+    NUM_TYPES
+};
+
+struct PokemonSpecie
 {
     //! Pokédex number.
     uint16_t number;
@@ -362,6 +405,29 @@ R"(struct PokemonSpecie
 };
 
 )";
+
+    output << "//! Type-effectiveness scalar table, use PokemonType enum to access.\n";
+    output << "//! @sa AttackScalars\n";
+    output << "static const std::array<std::array<float, 18>, 18> TypeEffectiveness{{\n";
+    //output << "static const float TypeEffectiveness[18][18]{\n";
+    for (size_t i = 0; i < numTypes; ++i)
+    {
+        output << indent << "{ ";
+        for (size_t j = 0; j < numTypes; ++j)
+        {
+            auto scalar = typeEffectiveness[i][j];
+            assert(!IsZero(scalar));
+            output << typeEffectiveness[i][j];
+            if (!Equals(scalar, 1)) output << "f";
+            if (j < numTypes - 1) output << ", ";
+        }
+        output << "}";
+        if (i < numTypes - 1) output << ",";
+        output << "\n";
+    }
+    output << "}};\n\n";
+    //output << "};\n\n";
+
 
     auto writePokemon = [&output](const PokemonSpecie& pkm)
     {

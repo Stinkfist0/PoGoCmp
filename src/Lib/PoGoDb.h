@@ -74,27 +74,29 @@ const struct PokemonUpgradeSettings
     }};
 } PokemonUpgrades;
 
-enum class PokemonType : uint8_t
+//! The numerical value of the enum is used to access type-effectiveness table.
+enum class PokemonType : int8_t
 {
-    NONE,
-    BUG,
-    DARK,
-    DRAGON,
-    ELECTRIC,
-    FAIRY,
-    FIGHTING,
-    FIRE,
-    FLYING,
-    GHOST,
-    GRASS,
-    GROUND,
-    ICE,
+    NONE = -1,
     NORMAL,
+    FIGHTING,
+    FLYING,
     POISON,
-    PSYCHIC,
+    GROUND,
     ROCK,
+    BUG,
+    GHOST,
     STEEL,
+    FIRE,
     WATER,
+    GRASS,
+    ELECTRIC,
+    PSYCHIC,
+    ICE,
+    DRAGON,
+    DARK,
+    FAIRY,
+    NUM_TYPES
 };
 
 struct PokemonSpecie
@@ -125,6 +127,29 @@ struct PokemonSpecie
     float malePercent;
     float femalePercent;
 };
+
+//! Type-effectiveness scalar table, use PokemonType enum to access.
+//! @sa AttackScalars
+static const std::array<std::array<float, 18>, 18> TypeEffectiveness{{
+    { 1, 1, 1, 1, 1, 0.714f, 1, 0.51f, 0.714f, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    { 1.4f, 1, 0.714f, 0.714f, 1, 1.4f, 0.714f, 0.51f, 1.4f, 1, 1, 1, 1, 0.714f, 1.4f, 1, 1.4f, 0.714f},
+    { 1, 1.4f, 1, 1, 1, 0.714f, 1.4f, 1, 0.714f, 1, 1, 1.4f, 0.714f, 1, 1, 1, 1, 1},
+    { 1, 1, 1, 0.714f, 0.714f, 0.714f, 1, 0.714f, 0.51f, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f},
+    { 1, 1, 0.51f, 1.4f, 1, 1.4f, 0.714f, 1, 1.4f, 1.4f, 1, 0.714f, 1.4f, 1, 1, 1, 1, 1},
+    { 1, 0.714f, 1.4f, 1, 0.714f, 1, 1.4f, 1, 0.714f, 1.4f, 1, 1, 1, 1, 1.4f, 1, 1, 1},
+    { 1, 0.714f, 0.714f, 0.714f, 1, 1, 1, 0.714f, 0.714f, 0.714f, 1, 1.4f, 1, 1.4f, 1, 1, 1.4f, 0.714f},
+    { 0.51f, 1, 1, 1, 1, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 1},
+    { 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 0.714f, 0.714f, 1, 0.714f, 1, 1.4f, 1, 1, 1.4f},
+    { 1, 1, 1, 1, 1, 0.714f, 1.4f, 1, 1.4f, 0.714f, 0.714f, 1.4f, 1, 1, 1.4f, 0.714f, 1, 1},
+    { 1, 1, 1, 1, 1.4f, 1.4f, 1, 1, 1, 1.4f, 0.714f, 0.714f, 1, 1, 1, 0.714f, 1, 1},
+    { 1, 1, 0.714f, 0.714f, 1.4f, 1.4f, 0.714f, 1, 0.714f, 0.714f, 1.4f, 0.714f, 1, 1, 1, 0.714f, 1, 1},
+    { 1, 1, 1.4f, 1, 0.51f, 1, 1, 1, 1, 1, 1.4f, 0.714f, 0.714f, 1, 1, 0.714f, 1, 1},
+    { 1, 1.4f, 1, 1.4f, 1, 1, 1, 1, 0.714f, 1, 1, 1, 1, 0.714f, 1, 1, 0.51f, 1},
+    { 1, 1, 1.4f, 1, 1.4f, 1, 1, 1, 0.714f, 0.714f, 0.714f, 1.4f, 1, 1, 0.714f, 1.4f, 1, 1},
+    { 1, 1, 1, 1, 1, 1, 1, 1, 0.714f, 1, 1, 1, 1, 1, 1, 1.4f, 1, 0.51f},
+    { 1, 0.714f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 0.714f},
+    { 1, 1.4f, 1, 0.714f, 1, 1, 1, 1, 0.714f, 0.714f, 1, 1, 1, 1, 1, 1.4f, 1.4f, 1}
+}};
 
 //! Pokedex number - 1 can be used as the index to the array.
 static const std::array<PokemonSpecie, 386> PokemonByNumber{{
