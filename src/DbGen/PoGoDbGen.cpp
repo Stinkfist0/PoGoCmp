@@ -29,6 +29,15 @@
 bool Equals(float a, float b, float eps = 1e-5f) { return std::abs(a - b) < eps; }
 bool IsZero(float a, float eps = 1e-5f) { return Equals(a, 0, eps); }
 
+std::string FloatLiteralToString(float f)
+{
+    std::stringstream ss;
+    ss << f;
+    if (ss.str().find_first_of(".") != std::string::npos)
+        ss << "f";
+    return ss.str();
+}
+
 using namespace std::string_literals;
 
 std::string DateTimeOffsetString(std::time_t timestampS)
@@ -41,6 +50,7 @@ std::string DateTimeOffsetString(std::time_t timestampS)
 
 int main(int argc, char **argv)
 {
+    std::cout << std::tmpnam(nullptr) << '\n';
     auto args = Utf8::ParseArguments(argc, argv);
     if (args.size() != 2)
     {
@@ -70,22 +80,32 @@ int main(int argc, char **argv)
     std::string dateTimeOffset;
 
     // When serializing structs, std::vectors are written as std::arrays.
-    struct PlayerLevelSettingsTemp
+    struct PLAYER_LEVEL_SETTINGS
     {
         // rankNum skipped, seems uninteresting for now
         std::vector<int/*uint32_t*/> requiredExperience;
         std::vector<float> cpMultiplier;
-        size_t/*uint8_t*/ maxEggPlayerLevel{0};
-        size_t/*uint8_t*/ maxEncounterPlayerLevel{0};
-    } playerLevel;
+        size_t/*uint8_t*/ maxEggPlayerLevel;
+        size_t/*uint8_t*/ maxEncounterPlayerLevel;
+    } playerLevel{};
 
-    struct PokemonUpgradeSettingsTemp
+    struct POKEMON_UPGRADE_SETTINGS
     {
         int/*uint8_t*/ upgradesPerLevel;
         int/*uint8_t*/ allowedLevelsAbovePlayer;
         std::vector<int/*uint8_t*/> candyCost;
         std::vector<int/*uint16_t*/> stardustCost;
-    } pokemonUpgrades;
+    } pokemonUpgrades{};
+
+    struct WEATHER_BONUS_SETTINGS
+    {
+        int /*uint8_t*/ cpBaseLevelBonus;
+        int /*uint8_t*/ guaranteedIndividualValues;
+        float stardustBonusMultiplier;
+        float attackBonusMultiplier;
+        int /*uint8_t*/ raidEncounterCpBaseLevelBonus;
+        int /*uint8_t*/ raidEncounterGuaranteedIndividualValues;
+    } weatherBonus{};
 
     const size_t numTypes = 18;
     //float typeEffectiveness[numTypes][numTypes]{};
@@ -129,6 +149,16 @@ int main(int argc, char **argv)
                 pokemonUpgrades.candyCost.assign(candyCost.begin(), candyCost.end());
                 auto stardustCost = settings["stardustCost"];
                 pokemonUpgrades.stardustCost.assign(stardustCost.begin(), stardustCost.end());
+            }
+            else if (templateId == "WEATHER_BONUS_SETTINGS")
+            {
+                auto settings = itemTemplate["weatherBonusSettings"];
+                weatherBonus.cpBaseLevelBonus = settings["cpBaseLevelBonus"];
+                weatherBonus.guaranteedIndividualValues = settings["guaranteedIndividualValues"];
+                weatherBonus.stardustBonusMultiplier = settings["stardustBonusMultiplier"];
+                weatherBonus.attackBonusMultiplier = settings["attackBonusMultiplier"];
+                weatherBonus.raidEncounterCpBaseLevelBonus = settings["raidEncounterCpBaseLevelBonus"];
+                weatherBonus.raidEncounterGuaranteedIndividualValues = settings["raidEncounterGuaranteedIndividualValues"];
             }
             else if (std::regex_match(templateId, matches, typePattern))
             {
@@ -287,7 +317,6 @@ R"(enum class PokemonRarity : uint8_t
     //! Obtainability unclear, no mythic Pokemon released yet.
     MYTHIC
 };
-
 )";
 
     auto vectorToString = [&](const auto& vec, int valuesPerRow, const char* literalPostfix)
@@ -307,6 +336,7 @@ R"(enum class PokemonRarity : uint8_t
     };
 
     output <<
+        "\n"
         "const struct PlayerLevelSettings\n" +
         "{\n"s +
         indent << "//! The required amount of XP to level up.\n" +
@@ -321,9 +351,10 @@ R"(enum class PokemonRarity : uint8_t
         "} PlayerLevel;\n";
 
     output <<
-        "\nconst struct PokemonUpgradeSettings\n" +
+        "\n"
+        "const struct PokemonUpgradeSettings\n" +
         "{\n"s +
-        indent + "//! How many power-ups a a level consists of.\n" +
+        indent + "//! How many power-ups a level consists of.\n" +
         indent + "uint8_t upgradesPerLevel{" + std::to_string(pokemonUpgrades.upgradesPerLevel) + "};\n" +
         indent + "//! Trainer level + allowedLevelsAbovePlayer is the maximum level for the Pokémon.\n" +
         indent + "uint8_t allowedLevelsAbovePlayer{" + std::to_string(pokemonUpgrades.allowedLevelsAbovePlayer) + "};\n" +
@@ -332,6 +363,24 @@ R"(enum class PokemonRarity : uint8_t
         indent + "//! The stardust cost to upgrade from the one level to the next one.\n" +
         indent + "std::array<uint16_t, " + std::to_string(numLevels) + "> stardustCost" + vectorToString(pokemonUpgrades.stardustCost, 10, "") + "\n" +
         "} PokemonUpgrades;\n";
+
+    output <<
+        "\n"
+        "const struct WeatherBonusSettings\n" +
+        "{\n"s +
+        indent + "//! Maximum level increase for a weather boosted Pokémon.\n" +
+        indent + "uint8_t cpBaseLevelBonus{" + std::to_string(weatherBonus.cpBaseLevelBonus) + "};\n" +
+        indent + "//! The guaranteed minimum IV for a weather-boosted wild Pokémon.\n" +
+        indent + "uint8_t guaranteedIndividualValues{" + std::to_string(weatherBonus.guaranteedIndividualValues) + "};\n" +
+        indent + "//! Stardust bonus for a weather-boosted Pokémon.\n" +
+        indent + "float stardustBonusMultiplier{" + FloatLiteralToString(weatherBonus.stardustBonusMultiplier) + "};\n" +
+        indent + "//! Bonus multiplier applied to attacks with weather affinity.\n" +
+        indent + "float attackBonusMultiplier{" + FloatLiteralToString(weatherBonus.attackBonusMultiplier) + "};\n" +
+        indent + "//! Level increase for a weather-boosted raid encounter.\n" +
+        indent + "uint8_t raidEncounterCpBaseLevelBonus{" + std::to_string(weatherBonus.raidEncounterCpBaseLevelBonus) + "};\n" +
+        indent + "//! The guaranteed minimum IV for a weather-boosted raid encounter.\n" +
+        indent + "uint8_t raidEncounterGuaranteedIndividualValues{" + std::to_string(weatherBonus.raidEncounterGuaranteedIndividualValues) + "};\n" +
+        "} WeatherBonus;\n";
 
     const std::string typeNone{ "NONE" };
 

@@ -54,7 +54,7 @@ const struct PlayerLevelSettings
 
 const struct PokemonUpgradeSettings
 {
-    //! How many power-ups a a level consists of.
+    //! How many power-ups a level consists of.
     uint8_t upgradesPerLevel{2};
     //! Trainer level + allowedLevelsAbovePlayer is the maximum level for the Pokémon.
     uint8_t allowedLevelsAbovePlayer{2};
@@ -73,6 +73,22 @@ const struct PokemonUpgradeSettings
         6000, 6000, 7000, 7000, 8000, 8000, 9000, 9000, 10000, 10000
     }};
 } PokemonUpgrades;
+
+const struct WeatherBonusSettings
+{
+    //! Maximum level increase for a weather boosted Pokémon.
+    uint8_t cpBaseLevelBonus{5};
+    //! The guaranteed minimum IV for a weather-boosted wild Pokémon.
+    uint8_t guaranteedIndividualValues{4};
+    //! Stardust bonus for a weather-boosted Pokémon.
+    float stardustBonusMultiplier{1.25f};
+    //! Bonus multiplier applied to attacks with weather affinity.
+    float attackBonusMultiplier{1.2f};
+    //! Level increase for a weather-boosted raid encounter.
+    uint8_t raidEncounterCpBaseLevelBonus{5};
+    //! The guaranteed minimum IV for a weather-boosted raid encounter.
+    uint8_t raidEncounterGuaranteedIndividualValues{10};
+} WeatherBonus;
 
 //! The numerical value of the enum is used to access type-effectiveness table.
 enum class PokemonType : int8_t
