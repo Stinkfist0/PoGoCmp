@@ -170,7 +170,7 @@ const std::vector<ProgramOption> programsOptions{
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %a (base attack), %d (base defense), %s (base stamina), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %b (buddy distance, km), "
-        "(%g gender ratio) \\n (new line), \\t (tab)"
+        "(%g gender ratio by male percentage) \\n (new line), \\t (tab)"
         "Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {"", "--ivs",
@@ -192,6 +192,10 @@ const std::vector<ProgramOption> programsOptions{
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
         "'powerup 15.5,31.5'"
+    },
+    { "perfect-ivs", "",
+        L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
+        L"Only single name/ID as an argument supported."
     },
     { "info", "", L"Print information about the available data set." }
 };
@@ -544,6 +548,31 @@ int main(int argc, char **argv)
         catch(const std::exception& e)
         {
             LogErrorAndExit(Concat("Not a valid range: ", e.what()));
+        }
+        ret = EXIT_SUCCESS;
+    }
+    else if (opts.HasOption("perfect-ivs"))
+    {
+        auto val = opts.OptionValue("perfect-ivs");
+        try
+        {
+            auto number = IsNumber(val)
+                ? std::stoul(val)
+                : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(val))->number;
+            auto pkm = PoGoCmp::PokemonByNumber.at(number - 1);
+            // "<number>&cp<cpAtLevel1>,cp<cpAtLevel2>,..."
+            std::stringstream ss;
+            ss << number << "&";
+            const auto numLevels = (float)PoGoCmp::PlayerLevel.maxEncounterPlayerLevel + 5; /**< @todo read weather boost level from variable */
+            for (float level = 1; level <= numLevels; ++level)
+                ss << "cp" << ComputeCp(pkm, { level, 15, 15, 15 }) << ",";
+            auto searchString = ss.str();
+            searchString.erase(searchString.end() - 1);
+            Log(searchString);
+        }
+        catch(const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Not a valid name or number: ", e.what()));
         }
         ret = EXIT_SUCCESS;
     }
