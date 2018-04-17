@@ -110,7 +110,7 @@ std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.st
 
 Utf8::String FormatGender(float malePercent, float femalePercent)
 {
-    std::wstring genderText = L"-";
+    std::wstring genderText = L"○";
     if (!IsZero(malePercent))
     {
         genderText = Utf8::ToWString(FloatToString(malePercent)) + L" % ♂";
