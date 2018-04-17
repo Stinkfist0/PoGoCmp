@@ -560,11 +560,13 @@ int main(int argc, char **argv)
                 ? std::stoul(val)
                 : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(val))->number;
             auto pkm = PoGoCmp::PokemonByNumber.at(number - 1);
+
             // "<number>&cp<cpAtLevel1>,cp<cpAtLevel2>,..."
             std::stringstream ss;
             ss << number << "&";
-            const auto numLevels = (float)PoGoCmp::PlayerLevel.maxEncounterPlayerLevel + 5; /**< @todo read weather boost level from variable */
-            for (float level = 1; level <= numLevels; ++level)
+            const auto maxWildLevel = PoGoCmp::PlayerLevel.maxEncounterPlayerLevel
+                + PoGoCmp::WeatherBonus.cpBaseLevelBonus;
+            for (float level = 1; level <= maxWildLevel; ++level)
                 ss << "cp" << ComputeCp(pkm, { level, 15, 15, 15 }) << ",";
             auto searchString = ss.str();
             searchString.erase(searchString.end() - 1);
