@@ -103,6 +103,7 @@ float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& 
     else if (prop == "total") { return float(pkm.baseAtk + pkm.baseDef + pkm.baseSta); }
     else if (prop == "cp") { return float(MaxCp(pkm)); }
     else if (prop == "gender") { return IsZero(pkm.malePercent) && IsZero(pkm.femalePercent) ? INFINITY : pkm.malePercent; }
+    else if (prop == "buddy") { return pkm.buddyDistance; }
     else { return NAN; }
 }
 
@@ -187,7 +188,8 @@ const std::vector<ProgramOption> programsOptions{
     // Commands
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
-        "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), or gender."
+        "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), gender, "
+        "or buddy (buddy distance)."
     },
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
@@ -377,6 +379,7 @@ int main(int argc, char **argv)
             if (level.empty())
                 LogErrorAndExit("Value missing for --level.");
 
+            //! @todo some kind of ParseValue(valStr, minVal, maxVal) to clean up various number parsing handlers
             try
             {
                 pkm.level = std::stof(level);
