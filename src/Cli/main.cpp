@@ -191,7 +191,9 @@ const std::vector<ProgramOption> programsOptions{
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
         "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), gender, "
-        "or buddy (buddy distance)."
+        "or buddy (buddy distance). Comparison operator (<, <=, =, >, or >=) and value can be appended to the criteria, "
+        "e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon with base attack larger than "
+        "or equal to 200 to the results."
     },
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
@@ -241,6 +243,18 @@ T ParseValue(const std::string& str, T minVal, T maxVal)
     return val;
 }
 
+using FloatComparator = std::function<bool(float, float)>;
+FloatComparator MakeComparator(const std::string& comp)
+{
+    if (comp == "<") return FloatComparator([](float a, float b) { return a < b; });
+    if (comp == "<=") return FloatComparator([](float a, float b) { return a <= b; });
+    if (comp == ">") return FloatComparator([](float a, float b) { return a > b; });
+    if (comp == ">=") return FloatComparator([](float a, float b) { return a >= b; });
+    if (comp == "=") return FloatComparator([](float a, float b) { return Equals(a, b); });
+    //! \todo throw or some else error mechanism
+    return FloatComparator([](float /*a*/, float /*b*/) { return true; });
+}
+
 int main(int argc, char **argv)
 {
     ProgamOptionMap opts{ Utf8::ParseArguments(argc, argv) };
@@ -286,16 +300,6 @@ int main(int argc, char **argv)
     int ret = EXIT_FAILURE;
     if (opts.HasOption("sort"))
     {
-        const bool ascending = !opts.HasOption("-d", "--descending");
-        using Cmp = std::function<bool(float, float)>;
-        const auto cmp = ascending ? Cmp(std::less<>()) : Cmp(std::greater<>());
-        const std::string sortCriteria = opts.OptionValue("sort");
-        auto sortFunction = [&cmp, &sortCriteria](const PoGoCmp::PokemonSpecie& lhs, const PoGoCmp::PokemonSpecie& rhs) {
-            auto lval = PropertyValueByName(lhs, sortCriteria), rval = PropertyValueByName(rhs, sortCriteria);
-            if (std::isnan(lval) || std::isnan(rval)) LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
-            return cmp(lval, rval);
-        };
-
         // E.g. "16,32", or "bulbasaur,ivysaur", or "250". The names can contain following
         // Unicode characters: ♀ (\u2640), ♂ (\u2642), é (\u00e9), É (\u00c9).
         //! @todo Test for this
@@ -452,20 +456,37 @@ int main(int argc, char **argv)
             }
         }
 
-        //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
+        const bool ascending = !opts.HasOption("-d", "--descending");
+        const auto sortCmp = MakeComparator(ascending ? "<" : ">");
+        std::string sortCriteria = opts.OptionValue("sort");
+        std::string compOpType;
+        float compVal;
+        auto opBegin = sortCriteria.find_first_of("<>=");
+        auto opEnd = sortCriteria.find_last_of("<>=");
+        if (opBegin != std::string::npos && opEnd != std::string::npos)
+        {
+            compOpType = sortCriteria.substr(opBegin, opEnd - opBegin + 1);
+            compVal = std::stof(sortCriteria.substr(opEnd + 1, sortCriteria.length() - opEnd));
+            sortCriteria = sortCriteria.substr(0, opBegin);
+        }
 
-        //std::vector<std::pair<PokedexRange, std::vector<PoGoCmp::PokemonSpecie>>> results;
+        if (std::isnan(PropertyValueByName({}, sortCriteria)))
+            LogErrorAndExit("Invalid sorting criteria: '" + sortCriteria + "'.");
+
         std::vector<PoGoCmp::PokemonSpecie> results;
-
         for (const auto& range : ranges)
         {
             auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
             auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
-            std::vector<PoGoCmp::PokemonSpecie> result(dataBegin, dataBegin + dataSize);
-            //std::sort(result.begin(), result.end(), sortFunction);
-            //results.push_back({ range, result });
-            results.insert(results.end(), result.begin(), result.end());
+            std::vector<PoGoCmp::PokemonSpecie> rangeResult(dataBegin, dataBegin + dataSize);
+            auto filterCmp = MakeComparator(compOpType);
+            std::copy_if(rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
+                [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); });
         }
+
+        auto sortFunction = [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs) {
+            return sortCmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
+        };
 
         std::sort(results.begin(), results.end(), sortFunction);
         results.erase(std::unique(results.begin(), results.end(),
