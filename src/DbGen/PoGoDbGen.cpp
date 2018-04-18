@@ -50,7 +50,6 @@ std::string DateTimeOffsetString(std::time_t timestampS)
 
 int main(int argc, char **argv)
 {
-    std::cout << std::tmpnam(nullptr) << '\n';
     auto args = Utf8::ParseArguments(argc, argv);
     if (args.size() != 2)
     {
