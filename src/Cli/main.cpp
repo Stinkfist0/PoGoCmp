@@ -11,6 +11,7 @@
 #include <functional>
 #include <numeric>
 #include <cmath>
+#include <climits>
 
 const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt CP %cp\\n" };
 
@@ -108,7 +109,7 @@ float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& 
 }
 
 // std::to_string(float) uses fixed precision instead of the %g type of specifier so using this to get nicer output
-std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.str(); };
+std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.str(); }
 
 Utf8::String FormatGender(float malePercent, float femalePercent)
 {
