@@ -107,6 +107,7 @@ float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& 
     else { return NAN; }
 }
 
+// std::to_string(float) uses fixed precision instead of the %g type of specifier so using this to get nicer output
 std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.str(); };
 
 Utf8::String FormatGender(float malePercent, float femalePercent)
@@ -197,7 +198,7 @@ const std::vector<ProgramOption> programsOptions{
     },
     { "perfect-ivs", "",
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
-        L"Only single name/ID as an argument supported."
+        L"Only single name/ID/number as an argument supported."
     },
     { "info", "", L"Print information about the available data set." }
 };
@@ -215,6 +216,28 @@ void PrintHelp()
         if (opt.type == ProgramOption::Arg)
             ss << "  " << opt << "\n";
     Utf8::PrintLine(ss.str());
+}
+
+template<typename Target, typename Source>
+Target LexicalCast(Source arg)
+{
+    std::stringstream ss;
+    Target result;
+    if (!(ss << arg) || !(ss >> result) || !(ss >> std::ws).eof())
+    {
+        throw std::runtime_error("Bad lexical cast.");
+    }
+
+    return result;
+}
+
+template <typename T>
+T ParseValue(const std::string& str, T minVal, T maxVal)
+{
+    T val = LexicalCast<T>(str);
+    if (val < minVal || val > maxVal)
+        throw std::runtime_error("Value out of range.");
+    return val;
 }
 
 int main(int argc, char **argv)
@@ -349,7 +372,7 @@ int main(int argc, char **argv)
         {
             try
             {
-                numResults = std::min(std::stoi(resultsVal), numResults);
+                numResults = std::min(ParseValue(resultsVal, INT_MIN, numResults), numResults);
             }
             catch (const std::exception& e)
             {
@@ -376,15 +399,9 @@ int main(int argc, char **argv)
         if (opts.HasOption("--level"))
         {
             auto level = opts.OptionValue("--level");
-            if (level.empty())
-                LogErrorAndExit("Value missing for --level.");
-
-            //! @todo some kind of ParseValue(valStr, minVal, maxVal) to clean up various number parsing handlers
             try
             {
-                pkm.level = std::stof(level);
-                if (pkm.level < 1 || pkm.level > PoGoCmp::PlayerLevel.cpMultiplier.size())
-                    throw std::runtime_error("Level not within valid range.");
+                pkm.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
             }
             catch (const std::exception& e)
             {
@@ -395,9 +412,6 @@ int main(int argc, char **argv)
         if (opts.HasOption("--ivs"))
         {
             auto ivs = opts.OptionValue("--ivs");
-            if (ivs.empty())
-                LogErrorAndExit("Value missing for --ivs.");
-
             if (std::count_if(ivs.begin(), ivs.end(),
                 [](auto c) { return std::isxdigit(c, std::locale::classic()); }) != 3)
             {
@@ -420,21 +434,16 @@ int main(int argc, char **argv)
         const bool isRaidBoss = opts.HasOption("--raidLevel");
         if (isRaidBoss)
         {
-            auto level = opts.OptionValue("--raidLevel");
-            if (level.empty())
-                LogErrorAndExit("Value missing for --raidLevel.");
-
             if (opts.HasOption("--level"))
                 Log("--level value is ignored due to --raidLevel.");
             if (opts.HasOption("--ivs"))
                 Log("--ivs value is ignored due to --raidLevel.");
 
+            auto level = opts.OptionValue("--raidLevel");
             try
             {
-                auto raidLevel = std::stof(level);
-                if (raidLevel < 1 || raidLevel > RaidLevels.size())
-                    throw std::runtime_error("Level not within valid range.");
-                pkm = RaidLevels[(size_t)raidLevel - 1];
+                auto raidLevel = ParseValue(level, 1, (int)RaidLevels.size());
+                pkm = RaidLevels[raidLevel - 1];
             }
             catch (const std::exception& e)
             {
@@ -516,15 +525,9 @@ int main(int argc, char **argv)
 
         try
         {
-            auto begin = std::stof(powerupRange[0]) - 1;
-            auto end = std::stof(powerupRange[1]) - 1;
-            if (begin < 0 || end >= PoGoCmp::PokemonUpgrades.candyCost.size())
-                LogErrorAndExit("Range out of bounds.");
-            if (end < begin)
-                LogErrorAndExit("Range's end cannot be greater than range's begin.");
-            if (Equals(begin, end))
-                LogErrorAndExit("Range's begin and end cannot be equal.");
-
+            const auto max = (float)PoGoCmp::PokemonUpgrades.candyCost.size();
+            auto end = ParseValue(powerupRange[1], 1.f, max);
+            auto begin = ParseValue(powerupRange[0], 1.f, end);
             const auto step = 1.f / PoGoCmp::PokemonUpgrades.upgradesPerLevel;
             float dummy;
             const auto beginFract = std::modf(begin, &dummy);
@@ -534,14 +537,12 @@ int main(int argc, char **argv)
             if (!Equals(endFract, 0.f) && !Equals(endFract, step))
                 LogErrorAndExit("Invalid factorial for range's end.");
 
-            const auto& candy = PoGoCmp::PokemonUpgrades.candyCost;
-            const auto& dust = PoGoCmp::PokemonUpgrades.stardustCost;
             int candyTotal{}, dustTotal{};
-            for (float i = begin; i < end; i += step)
+            for (float i = begin - 1; i < end - 1; i += step)
             {
                 auto idx = (size_t)std::floor(i);
-                candyTotal += candy[idx];
-                dustTotal += dust[idx];
+                candyTotal += PoGoCmp::PokemonUpgrades.candyCost[idx];
+                dustTotal += PoGoCmp::PokemonUpgrades.stardustCost[idx];
             }
 
             Log("Power-up costs from level " + powerupRange[0] + " to " + powerupRange[1] + ":");
