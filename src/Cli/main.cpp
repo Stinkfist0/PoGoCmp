@@ -193,11 +193,12 @@ const std::vector<ProgramOption> programsOptions{
         "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), gender, "
         "or buddy (buddy distance). Comparison operator (<, <=, =, >, or >=) and value can be appended to the criteria, "
         "e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon with base attack larger than "
-        "or equal to 200 to the results."
+        "or equal to 200 to the results. A name of Pokémon can also be used as the value: in this case the property of "
+        "the specified Pokémon is used as the reference point."
     },
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
-        "'powerup 15.5,31.5'"
+        "'powerup 15,31.5'"
     },
     { "perfect-ivs", "",
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
@@ -459,15 +460,25 @@ int main(int argc, char **argv)
         const bool ascending = !opts.HasOption("-d", "--descending");
         const auto sortCmp = MakeComparator(ascending ? "<" : ">");
         std::string sortCriteria = opts.OptionValue("sort");
-        std::string compOpType;
+        std::string compOpType, compValStr;
         float compVal;
         auto opBegin = sortCriteria.find_first_of("<>=");
         auto opEnd = sortCriteria.find_last_of("<>=");
         if (opBegin != std::string::npos && opEnd != std::string::npos)
         {
             compOpType = sortCriteria.substr(opBegin, opEnd - opBegin + 1);
-            compVal = std::stof(sortCriteria.substr(opEnd + 1, sortCriteria.length() - opEnd));
+            compValStr = sortCriteria.substr(opEnd + 1, sortCriteria.length() - opEnd);
             sortCriteria = sortCriteria.substr(0, opBegin);
+            try
+            {
+                compVal = IsNumber(compValStr)
+                    ? std::stof(compValStr)
+                    : PropertyValueByName(*PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(compValStr)), sortCriteria);
+            }
+            catch (const std::exception& e)
+            {
+                LogErrorAndExit(Concat("Not a valid number or name '", compValStr, "': ", e.what()));
+            }
         }
 
         if (std::isnan(PropertyValueByName({}, sortCriteria)))
