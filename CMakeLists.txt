@@ -18,6 +18,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (MSVC)
     add_compile_options(/W4 /std:c++14)
+    if (MSVC_VERSION GREATER 1900) # VS > 2015
+        add_definitions(/permissive-)
+    endif()
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -std=c++14 -fvisibility=hidden)
 endif()
