@@ -166,7 +166,7 @@ const std::vector<ProgramOption> programsOptions{
     //{ "-a", "--ascending", L"Sort the results in ascending order (default)." },
     { "-d", "--descending", L"Sort the results in descending order (ascending by default)." },
     { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
-        "'all' (default), 'gen<X>' (1/2/3), '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
+        "'all' (default), 'gen<X>' (1/2/3/4), 'unknown', '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
         "Multiple options supported."},
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
@@ -287,7 +287,8 @@ int main(int argc, char **argv)
     //! @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
-        Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
+        //! @todo
+        //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
         Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
         return EXIT_SUCCESS;
     }
@@ -323,6 +324,8 @@ int main(int argc, char **argv)
             else if (winclude == L"gen1") { range = Gen1Range; }
             else if (winclude == L"gen2") { range = Gen2Range; }
             else if (winclude == L"gen3") { range = Gen3Range; }
+            else if (winclude == L"gen4") { range = Gen4Range; }
+            else if (winclude == L"unknown") { range = UnknownRange; }
             else if (std::regex_match(winclude, rangeMatches, rangePattern))
             {
                 try
@@ -334,25 +337,40 @@ int main(int argc, char **argv)
                     auto rangeSecond = rangeMatches.size() > 2 ? Utf8::FromWString(rangeMatches[3].str()) : "";
                     Trim(rangeSecond);
 
-                    range.first = IsNumber(rangeFirst) ? std::stoul(rangeFirst)
+                    range.first = IsNumber(rangeFirst)
+                        ? std::stoul(rangeFirst)
                         : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(rangeFirst))->number;
 
-                    range.second = rangeSecond.empty() ? range.first
-                        : IsNumber(rangeSecond) ? std::stoul(rangeSecond)
-                        : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
+                    range.second = rangeSecond.empty()
+                        ? range.first
+                        : IsNumber(rangeSecond)
+                            ? std::stoul(rangeSecond)
+                            : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(rangeSecond))->number;
 
                     if (range.first < 1)
                     {
-                        LogErrorAndExit("Range's min. (" + std::to_string(range.first) + ") cannot be less than 1");
+                        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) + ") cannot be less than 1");
                     }
                     if (range.first > range.second)
                     {
-                        LogErrorAndExit("Range's min. (" + std::to_string(range.first) + ") cannot be greater than max. ("
+                        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) + ") cannot be greater than max. ("
                             + std::to_string(range.second) + ")");
                     }
-                    if (range.second > MaxRange.second)
+
+                    auto isWithinRange = [](const auto& range, const auto& value)
                     {
-                        LogErrorAndExit("Range's max. cannot be than " + std::to_string(MaxRange.second));
+                        return value >= range.first && value <= range.second;
+                    };
+
+                    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
+                        [&](const auto& r) { return isWithinRange(r, range.first); }))
+                    {
+                        LogErrorAndExit("Range's min. " + std::to_string(range.first) + " not within valid ranges.");
+                    }
+                    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
+                        [&](const auto& r) { return isWithinRange(r, range.second); }))
+                    {
+                        LogErrorAndExit("Range's max. " + std::to_string(range.second) + " not within valid ranges.");
                     }
                 }
                 catch (const std::exception& e)
@@ -368,9 +386,6 @@ int main(int argc, char **argv)
 
             ranges.push_back(range);
         }
-
-        //std::sort(ranges.begin(), ranges.end());
-        //ranges.erase(std::unique(ranges.begin(), ranges.end()), ranges.end());
 
         int numResults = (int)PoGoCmp::PokemonByNumber.size();
         auto resultsVal = opts.OptionValue("-r", "--results");
@@ -487,19 +502,21 @@ int main(int argc, char **argv)
         std::vector<PoGoCmp::PokemonSpecie> results;
         for (const auto& range : ranges)
         {
-            auto dataBegin = PoGoCmp::PokemonByNumber.begin() + (range.first - 1);
-            auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (range.second - range.first + 1));
+            // convert range from Pokédex numbers to indices
+            PokedexRange indexRange{ PokemonIndex(range.first), PokemonIndex(range.second) };
+
+            auto dataBegin = PoGoCmp::PokemonByNumber.begin() + indexRange.first;
+            auto dataSize = (size_t)std::distance(dataBegin, dataBegin + (indexRange.second - indexRange.first + 1));
             std::vector<PoGoCmp::PokemonSpecie> rangeResult(dataBegin, dataBegin + dataSize);
             auto filterCmp = MakeComparator(compOpType);
             std::copy_if(rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
                 [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); });
         }
 
-        auto sortFunction = [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs) {
+        std::sort(results.begin(), results.end(), [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs) {
             return sortCmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
-        };
+        });
 
-        std::sort(results.begin(), results.end(), sortFunction);
         results.erase(std::unique(results.begin(), results.end(),
             [](const auto& a, const auto& b) { return a.number == b.number; }),
             results.end());
@@ -596,7 +613,7 @@ int main(int argc, char **argv)
             auto number = IsNumber(val)
                 ? std::stoul(val)
                 : PoGoCmp::PokemonByIdName.at(PoGoCmp::PokemonNameToId(val))->number;
-            auto pkm = PoGoCmp::PokemonByNumber.at(number - 1);
+            auto pkm = PoGoCmp::PokemonByNumber.at(PokemonIndex(number));
 
             // "<number>&cp<cpAtLevel1>,cp<cpAtLevel2>,..."
             std::stringstream ss;

@@ -492,7 +492,7 @@ struct PokemonSpecie
     //};
 
     //output << "static const std::map<uint16_t, PokemonSpecie> PokemonByNumber {\n";
-    output << "//! Pokedex number - 1 can be used as the index to the array.\n";
+    output << "//! Use PokemonIndex() for the index in PoGoCmp::PokemonByNumber.\n";
     // NOTE double-brace syntax needed for the array's initializer list ctor
     output << "static const std::array<PokemonSpecie, " << pokemonTable.size() << "> PokemonByNumber{{\n";
     for (const auto& it : pokemonTable)
@@ -535,12 +535,21 @@ static inline int CompareI(const char* str1, const char* str2)
 
     output <<
 R"(
-//! Pokedex number range, number - 1 for the index in PoGoCmp::PokemonByNumber.
+//! Pokedex number range
 using PokedexRange = std::pair<size_t, size_t>;
 const PokedexRange Gen1Range{ 1, 151 };
 const PokedexRange Gen2Range{ 152, 251 };
 const PokedexRange Gen3Range{ 252, 386 };
+const PokedexRange Gen4Range{ 387, 493 };
+const PokedexRange LatestGenRange{ Gen4Range };
+//! Meltan and Melmetal
+const PokedexRange UnknownRange{ 808, 809};
+//! Range for known generations, unknown Pokémon appended to the end
 const PokedexRange MaxRange{ 1, PoGoCmp::PokemonByNumber.size() };
+const std::array<PokedexRange, 2> ValidRanges{{
+    { Gen1Range.first, LatestGenRange.second },
+    { UnknownRange }
+}};
 
 //! Properties of individual Pokémon.
 struct Pokemon
@@ -560,6 +569,7 @@ const std::array<Pokemon, 5> RaidLevels{{
     { 30, 15, 15, 3000 },
     { 40, 15, 15, 7500 },
     { 40, 15, 15, 12500 }
+    //! @todo "level 6" (level 5 but with more health (Mewtwo in regular raids)
 }};
 
 //! Case-insensitive.
@@ -590,14 +600,23 @@ struct StringLessThanI
     }
 };
 
+static inline size_t PokemonIndex(size_t number)
+{
+    if (number == 808) return LatestGenRange.second;
+    else if (number == 809) return LatestGenRange.second + 1;
+    else return number - 1;
+}
+
 //! Case-insensitive.
 //! @sa PokemonNameToId, PokemonIdToName
 static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByIdName {
 )";
+    // Since the introduction of Meltan and Melmetal, we cannot trust
+    // that the Pokémon numbers match to consecutive indices.
+    size_t idx{ 0 };
     for (const auto& it : pokemonTable)
     {
-        //writePokemon(std::quoted(it.second.name), it.second);
-        output << indent << "{ " << std::quoted(it.second.id) << ", &PokemonByNumber[" << it.first - 1 << "] },\n" ;
+        output << indent << "{ " << std::quoted(it.second.id) << ", &PokemonByNumber[" << idx++ /*it.first - 1*/ << "] },\n" ;
     }
     output << "};";
     output <<
