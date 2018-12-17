@@ -39,7 +39,7 @@ struct ProgramOption
 
 std::ostream& operator<< (std::ostream& out, const ProgramOption& opt)
 {
-    out << opt.shortName << (opt.longName.empty() ? "" : ",") << opt.longName << ": " << opt.help;
+    out << opt.shortName << (opt.shortName.empty() || opt.longName.empty() ? "" : ",") << opt.longName << ": " << opt.help;
     return out;
 }
 
