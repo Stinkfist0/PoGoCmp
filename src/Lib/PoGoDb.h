@@ -1,7 +1,7 @@
 /** @file PoGoDb.h
     @brief C++ API for PoGoCmp. For C one can use PoGoCmp.h.
 
-    Input file's timestamp 2018-12-09 17:21:01+0200 */
+    Input file's timestamp 2018-12-26 12:17:51+0200 */
 
 #pragma once
 
@@ -147,24 +147,24 @@ struct PokemonSpecie
 //! Type-effectiveness scalar table, use PokemonType enum to access.
 //! @sa AttackScalars
 static const std::array<std::array<float, 18>, 18> TypeEffectiveness{{
-    { 1, 1, 1, 1, 1, 0.714f, 1, 0.51f, 0.714f, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-    { 1.4f, 1, 0.714f, 0.714f, 1, 1.4f, 0.714f, 0.51f, 1.4f, 1, 1, 1, 1, 0.714f, 1.4f, 1, 1.4f, 0.714f},
-    { 1, 1.4f, 1, 1, 1, 0.714f, 1.4f, 1, 0.714f, 1, 1, 1.4f, 0.714f, 1, 1, 1, 1, 1},
-    { 1, 1, 1, 0.714f, 0.714f, 0.714f, 1, 0.714f, 0.51f, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f},
-    { 1, 1, 0.51f, 1.4f, 1, 1.4f, 0.714f, 1, 1.4f, 1.4f, 1, 0.714f, 1.4f, 1, 1, 1, 1, 1},
-    { 1, 0.714f, 1.4f, 1, 0.714f, 1, 1.4f, 1, 0.714f, 1.4f, 1, 1, 1, 1, 1.4f, 1, 1, 1},
-    { 1, 0.714f, 0.714f, 0.714f, 1, 1, 1, 0.714f, 0.714f, 0.714f, 1, 1.4f, 1, 1.4f, 1, 1, 1.4f, 0.714f},
-    { 0.51f, 1, 1, 1, 1, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 1},
-    { 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 0.714f, 0.714f, 1, 0.714f, 1, 1.4f, 1, 1, 1.4f},
-    { 1, 1, 1, 1, 1, 0.714f, 1.4f, 1, 1.4f, 0.714f, 0.714f, 1.4f, 1, 1, 1.4f, 0.714f, 1, 1},
-    { 1, 1, 1, 1, 1.4f, 1.4f, 1, 1, 1, 1.4f, 0.714f, 0.714f, 1, 1, 1, 0.714f, 1, 1},
-    { 1, 1, 0.714f, 0.714f, 1.4f, 1.4f, 0.714f, 1, 0.714f, 0.714f, 1.4f, 0.714f, 1, 1, 1, 0.714f, 1, 1},
-    { 1, 1, 1.4f, 1, 0.51f, 1, 1, 1, 1, 1, 1.4f, 0.714f, 0.714f, 1, 1, 0.714f, 1, 1},
-    { 1, 1.4f, 1, 1.4f, 1, 1, 1, 1, 0.714f, 1, 1, 1, 1, 0.714f, 1, 1, 0.51f, 1},
-    { 1, 1, 1.4f, 1, 1.4f, 1, 1, 1, 0.714f, 0.714f, 0.714f, 1.4f, 1, 1, 0.714f, 1.4f, 1, 1},
-    { 1, 1, 1, 1, 1, 1, 1, 1, 0.714f, 1, 1, 1, 1, 1, 1, 1.4f, 1, 0.51f},
-    { 1, 0.714f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 1, 1, 1, 1.4f, 1, 1, 0.714f, 0.714f},
-    { 1, 1.4f, 1, 0.714f, 1, 1, 1, 1, 0.714f, 0.714f, 1, 1, 1, 1, 1, 1.4f, 1.4f, 1}
+    { 1, 1, 1, 1, 1, 0.625f, 1, 0.390625f, 0.625f, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    { 1.6f, 1, 0.625f, 0.625f, 1, 1.6f, 0.625f, 0.390625f, 1.6f, 1, 1, 1, 1, 0.625f, 1.6f, 1, 1.6f, 0.625f},
+    { 1, 1.6f, 1, 1, 1, 0.625f, 1.6f, 1, 0.625f, 1, 1, 1.6f, 0.625f, 1, 1, 1, 1, 1},
+    { 1, 1, 1, 0.625f, 0.625f, 0.625f, 1, 0.625f, 0.390625f, 1, 1, 1.6f, 1, 1, 1, 1, 1, 1.6f},
+    { 1, 1, 0.390625f, 1.6f, 1, 1.6f, 0.625f, 1, 1.6f, 1.6f, 1, 0.625f, 1.6f, 1, 1, 1, 1, 1},
+    { 1, 0.625f, 1.6f, 1, 0.625f, 1, 1.6f, 1, 0.625f, 1.6f, 1, 1, 1, 1, 1.6f, 1, 1, 1},
+    { 1, 0.625f, 0.625f, 0.625f, 1, 1, 1, 0.625f, 0.625f, 0.625f, 1, 1.6f, 1, 1.6f, 1, 1, 1.6f, 0.625f},
+    { 0.390625f, 1, 1, 1, 1, 1, 1, 1.6f, 1, 1, 1, 1, 1, 1.6f, 1, 1, 0.625f, 1},
+    { 1, 1, 1, 1, 1, 1.6f, 1, 1, 0.625f, 0.625f, 0.625f, 1, 0.625f, 1, 1.6f, 1, 1, 1.6f},
+    { 1, 1, 1, 1, 1, 0.625f, 1.6f, 1, 1.6f, 0.625f, 0.625f, 1.6f, 1, 1, 1.6f, 0.625f, 1, 1},
+    { 1, 1, 1, 1, 1.6f, 1.6f, 1, 1, 1, 1.6f, 0.625f, 0.625f, 1, 1, 1, 0.625f, 1, 1},
+    { 1, 1, 0.625f, 0.625f, 1.6f, 1.6f, 0.625f, 1, 0.625f, 0.625f, 1.6f, 0.625f, 1, 1, 1, 0.625f, 1, 1},
+    { 1, 1, 1.6f, 1, 0.390625f, 1, 1, 1, 1, 1, 1.6f, 0.625f, 0.625f, 1, 1, 0.625f, 1, 1},
+    { 1, 1.6f, 1, 1.6f, 1, 1, 1, 1, 0.625f, 1, 1, 1, 1, 0.625f, 1, 1, 0.390625f, 1},
+    { 1, 1, 1.6f, 1, 1.6f, 1, 1, 1, 0.625f, 0.625f, 0.625f, 1.6f, 1, 1, 0.625f, 1.6f, 1, 1},
+    { 1, 1, 1, 1, 1, 1, 1, 1, 0.625f, 1, 1, 1, 1, 1, 1, 1.6f, 1, 0.390625f},
+    { 1, 0.625f, 1, 1, 1, 1, 1, 1.6f, 1, 1, 1, 1, 1, 1.6f, 1, 1, 0.625f, 0.625f},
+    { 1, 1.6f, 1, 0.625f, 1, 1, 1, 1, 0.625f, 0.625f, 1, 1, 1, 1, 1, 1.6f, 1.6f, 1}
 }};
 
 //! Use PokemonIndex() for the index in PoGoCmp::PokemonByNumber.
@@ -459,7 +459,7 @@ static const std::array<PokemonSpecie, 495> PokemonByNumber{{
     { 288, 159, 145, 190, "VIGOROTH", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
     { 289, 290, 166, 284, "SLAKING", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
     { 290, 80, 126, 104, "NINCADA", PokemonType::BUG, PokemonType::GROUND, PokemonRarity::NORMAL, 5, 50, 50 },
-    { 291, 196, 112, 156, "NINJASK", PokemonType::BUG, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
+    { 291, 199, 112, 156, "NINJASK", PokemonType::BUG, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
     { 292, 153, 73, 1, "SHEDINJA", PokemonType::BUG, PokemonType::GHOST, PokemonRarity::NORMAL, 5, 0, 0 },
     { 293, 92, 42, 162, "WHISMUR", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
     { 294, 134, 81, 197, "LOUDRED", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
@@ -576,7 +576,7 @@ static const std::array<PokemonSpecie, 495> PokemonByNumber{{
     { 405, 232, 156, 190, "LUXRAY", PokemonType::ELECTRIC, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
     { 406, 91, 109, 120, "BUDEW", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL, 3, 50, 50 },
     { 407, 243, 185, 155, "ROSERADE", PokemonType::GRASS, PokemonType::POISON, PokemonRarity::NORMAL, 3, 50, 50 },
-    { 408, 218, 71, 167, "CRANIDOS", PokemonType::ROCK, PokemonType::ROCK, PokemonRarity::NORMAL, 1, 87.5, 12.5 },
+    { 408, 218, 71, 167, "CRANIDOS", PokemonType::ROCK, PokemonType::ROCK, PokemonRarity::NORMAL, 5, 87.5, 12.5 },
     { 409, 295, 109, 219, "RAMPARDOS", PokemonType::ROCK, PokemonType::ROCK, PokemonRarity::NORMAL, 5, 87.5, 12.5 },
     { 410, 76, 195, 102, "SHIELDON", PokemonType::ROCK, PokemonType::STEEL, PokemonRarity::NORMAL, 5, 87.5, 12.5 },
     { 411, 94, 286, 155, "BASTIODON", PokemonType::ROCK, PokemonType::STEEL, PokemonRarity::NORMAL, 5, 87.5, 12.5 },
@@ -592,22 +592,22 @@ static const std::array<PokemonSpecie, 495> PokemonByNumber{{
     { 421, 170, 153, 172, "CHERRIM", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL, 3, 50, 50 },
     { 422, 103, 105, 183, "SHELLOS", PokemonType::WATER, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
     { 423, 169, 143, 244, "GASTRODON", PokemonType::WATER, PokemonType::GROUND, PokemonRarity::NORMAL, 5, 50, 50 },
-    { 424, 205, 143, 181, "AMBIPOM", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
+    { 424, 205, 143, 181, "AMBIPOM", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 50, 50 },
     { 425, 117, 80, 207, "DRIFLOON", PokemonType::GHOST, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
     { 426, 180, 102, 312, "DRIFBLIM", PokemonType::GHOST, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
     { 427, 130, 105, 146, "BUNEARY", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 50, 50 },
     { 428, 156, 194, 163, "LOPUNNY", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 50, 50 },
-    { 429, 211, 187, 155, "MISMAGIUS", PokemonType::GHOST, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
+    { 429, 211, 187, 155, "MISMAGIUS", PokemonType::GHOST, PokemonType::NONE, PokemonRarity::NORMAL, 3, 50, 50 },
     { 430, 243, 103, 225, "HONCHKROW", PokemonType::DARK, PokemonType::FLYING, PokemonRarity::NORMAL, 3, 50, 50 },
     { 431, 109, 82, 135, "GLAMEOW", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 25, 75 },
     { 432, 172, 133, 174, "PURUGLY", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 25, 75 },
-    { 433, 114, 94, 128, "CHINGLING", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
+    { 433, 114, 94, 128, "CHINGLING", PokemonType::PSYCHIC, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
     { 434, 121, 90, 160, "STUNKY", PokemonType::POISON, PokemonType::DARK, PokemonRarity::NORMAL, 3, 50, 50 },
     { 435, 184, 132, 230, "SKUNTANK", PokemonType::POISON, PokemonType::DARK, PokemonRarity::NORMAL, 3, 50, 50 },
     { 436, 43, 154, 149, "BRONZOR", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::NORMAL, 3, 0, 0 },
     { 437, 161, 213, 167, "BRONZONG", PokemonType::STEEL, PokemonType::PSYCHIC, PokemonRarity::NORMAL, 3, 0, 0 },
-    { 438, 124, 133, 137, "BONSLY", PokemonType::ROCK, PokemonType::NONE, PokemonRarity::NORMAL, 1, 50, 50 },
-    { 439, 125, 142, 85, "MIME_JR", PokemonType::PSYCHIC, PokemonType::FAIRY, PokemonRarity::NORMAL, 1, 50, 50 },
+    { 438, 124, 133, 137, "BONSLY", PokemonType::ROCK, PokemonType::NONE, PokemonRarity::NORMAL, 5, 50, 50 },
+    { 439, 125, 142, 85, "MIME_JR", PokemonType::PSYCHIC, PokemonType::FAIRY, PokemonRarity::NORMAL, 5, 50, 50 },
     { 440, 25, 77, 225, "HAPPINY", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 5, 0, 100 },
     { 441, 183, 91, 183, "CHATOT", PokemonType::NORMAL, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
     { 442, 169, 199, 137, "SPIRITOMB", PokemonType::GHOST, PokemonType::DARK, PokemonRarity::NORMAL, 5, 50, 50 },
@@ -640,8 +640,8 @@ static const std::array<PokemonSpecie, 495> PokemonByNumber{{
     { 469, 231, 156, 200, "YANMEGA", PokemonType::BUG, PokemonType::FLYING, PokemonRarity::NORMAL, 3, 50, 50 },
     { 470, 216, 219, 163, "LEAFEON", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::NORMAL, 3, 87.5, 12.5 },
     { 471, 238, 205, 163, "GLACEON", PokemonType::ICE, PokemonType::NONE, PokemonRarity::NORMAL, 3, 87.5, 12.5 },
-    { 472, 185, 222, 181, "GLISCOR", PokemonType::GROUND, PokemonType::FLYING, PokemonRarity::NORMAL, 3, 50, 50 },
-    { 473, 247, 146, 242, "MAMOSWINE", PokemonType::ICE, PokemonType::GROUND, PokemonRarity::NORMAL, 1, 50, 50 },
+    { 472, 185, 222, 181, "GLISCOR", PokemonType::GROUND, PokemonType::FLYING, PokemonRarity::NORMAL, 5, 50, 50 },
+    { 473, 247, 146, 242, "MAMOSWINE", PokemonType::ICE, PokemonType::GROUND, PokemonRarity::NORMAL, 3, 50, 50 },
     { 474, 264, 150, 198, "PORYGON_Z", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::NORMAL, 3, 0, 0 },
     { 475, 237, 195, 169, "GALLADE", PokemonType::PSYCHIC, PokemonType::FIGHTING, PokemonRarity::NORMAL, 5, 100, 0 },
     { 476, 135, 275, 155, "PROBOPASS", PokemonType::ROCK, PokemonType::STEEL, PokemonRarity::NORMAL, 3, 50, 50 },
@@ -662,8 +662,8 @@ static const std::array<PokemonSpecie, 495> PokemonByNumber{{
     { 491, 285, 198, 172, "DARKRAI", PokemonType::DARK, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
     { 492, 210, 210, 225, "SHAYMIN", PokemonType::GRASS, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
     { 493, 238, 238, 237, "ARCEUS", PokemonType::NORMAL, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
-    { 808, 112, 113, 130, "MELTAN", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
-    { 809, 231, 213, 264, "MELMETAL", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
+    { 808, 118, 99, 130, "MELTAN", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
+    { 809, 226, 190, 264, "MELMETAL", PokemonType::STEEL, PokemonType::NONE, PokemonRarity::MYTHIC, 20, 0, 0 },
 }};
 
 //! Case-insensitive string comparison.
