@@ -168,6 +168,9 @@ const std::vector<ProgramOption> programsOptions{
     { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
         "'all' (default), 'gen<X>' (1/2/3/4), 'unknown', '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
         "Multiple options supported."},
+    { "-it", "--include-type", L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, "
+        "rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, or fairy."
+        "Multiple options supported."},
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
@@ -521,6 +524,7 @@ int main(int argc, char **argv)
             [](const auto& a, const auto& b) { return a.number == b.number; }),
             results.end());
 
+        // --rarity
         std::vector<PoGoCmp::PokemonRarity> rarities{
             PoGoCmp::PokemonRarity::NORMAL,
             PoGoCmp::PokemonRarity::LEGENDARY,
@@ -542,6 +546,33 @@ int main(int argc, char **argv)
         results.erase(std::remove_if(results.begin(), results.end(), [&rarities](const auto& pkm) {
             return std::find(rarities.begin(), rarities.end(), pkm.rarity) == rarities.end();
         }), results.end());
+
+        // --include-types
+        std::vector<PoGoCmp::PokemonType> types;
+        auto includeTypes = opts.OptionValues("-it", "--include-types");
+        for (const auto& typeStr : includeTypes)
+        {
+            auto type = PoGoCmp::StringToPokemonType(typeStr.c_str());
+            if (type == PoGoCmp::PokemonType::NONE)
+                LogErrorAndExit("Unknown type '" + typeStr + "'");
+            types.push_back(type);
+        }
+
+        if (!types.empty())
+        {
+            results.erase(
+                std::remove_if(
+                    results.begin(),
+                    results.end(), [&types](const auto& pkm)
+                    {
+                        return std::find_if(types.begin(), types.end(),
+                            [&pkm](auto type) { return pkm.type == type || pkm.type2 == type; }
+                        ) == types.end();
+                    }
+                ),
+                results.end()
+            );
+        }
 
         const auto numMatches = (int)results.size();
             //std::accumulate(results.begin(), results.end(), 0,
