@@ -54,20 +54,20 @@ class ifstream : public std::ifstream
 public:
     ifstream() : std::ifstream() {}
 
-    explicit ifstream(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::in) :
+    explicit ifstream(ByteArray filename, std::ios_base::openmode mode = std::ios_base::in) :
         std::ifstream(ToWString(filename), mode)
     {}
 
-    explicit ifstream(const String& filename, std::ios_base::open_mode mode = std::ios_base::in) :
+    explicit ifstream(const String& filename, std::ios_base::openmode mode = std::ios_base::in) :
         std::ifstream(ToWString(filename), mode)
     {}
 
-    void open(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::in)
+    void open(ByteArray filename, std::ios_base::openmode mode = std::ios_base::in)
     {
         std::ifstream::open(ToWString(filename), mode);
     }
 
-    void open(const String& filename, std::ios_base::open_mode mode = std::ios_base::in)
+    void open(const String& filename, std::ios_base::openmode mode = std::ios_base::in)
     {
         std::ifstream::open(ToWString(filename), mode);
     }
@@ -78,20 +78,20 @@ class ofstream : public std::ofstream
 public:
     ofstream() : std::ofstream() {}
 
-    explicit ofstream(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::out) :
+    explicit ofstream(ByteArray filename, std::ios_base::openmode mode = std::ios_base::out) :
         std::ofstream(ToWString(filename), mode)
     {}
 
-    explicit ofstream(const String& filename, std::ios_base::open_mode mode = std::ios_base::out) :
+    explicit ofstream(const String& filename, std::ios_base::openmode mode = std::ios_base::out) :
         std::ofstream(ToWString(filename), mode)
     {}
 
-    void open(ByteArray filename, std::ios_base::open_mode mode = std::ios_base::out)
+    void open(ByteArray filename, std::ios_base::openmode mode = std::ios_base::out)
     {
         std::ofstream::open(ToWString(filename), mode);
     }
 
-    void open(const String& filename, std::ios_base::open_mode mode = std::ios_base::out)
+    void open(const String& filename, std::ios_base::openmode mode = std::ios_base::out)
     {
         std::ofstream::open(ToWString(filename), mode);
     }

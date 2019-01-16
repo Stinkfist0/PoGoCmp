@@ -2,6 +2,8 @@
     @file   Utf8.cpp
     @brief  UTF-8 Process/IO/String utilities. */
 
+//! @todo codecvt deprecated in C++17, silence warning for now
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include "Utf8.h"
 
 #ifdef WIN32
