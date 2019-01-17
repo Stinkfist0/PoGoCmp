@@ -22,7 +22,7 @@ if (MSVC)
         add_definitions(/permissive-)
     endif()
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic -std=c++17 -fvisibility=hidden)
+    add_compile_options(-Wall -Wextra -Wpedantic -std=c++17 -fvisibility=hidden -Wshadow)
 endif()
 
 if (WIN32)
