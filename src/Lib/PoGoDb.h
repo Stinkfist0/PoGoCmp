@@ -1079,7 +1079,7 @@ static inline std::string PokemonNameToId(Utf8::String name)
     }
     else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0)
     {
-        return PokemonByNumber.find(255)->second.id;
+        return PokemonByNumber.find(250)->second.id;
     }
     else if (Utf8::CompareI(name.c_str(), PorygonZName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "PorygonZ") == 0)
     {
@@ -1090,7 +1090,11 @@ static inline std::string PokemonNameToId(Utf8::String name)
         const auto& cLocale = std::locale::classic();
         std::transform(
             name.begin(), name.end(), name.begin(),
-            [&cLocale](auto c) { if (c == ' ') return '_'; else return std::toupper(c, cLocale); }
+            [&cLocale](auto c)
+            {
+                if (c == ' ' || c == '-') return '_';
+                else return std::toupper(c, cLocale);
+            }
         );
         return name;
     }

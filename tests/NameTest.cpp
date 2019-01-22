@@ -27,12 +27,15 @@ int main(/*int argc, char **argv*/)
     Assert(PokemonNameToId("mr mime"), "MR_MIME");
     Assert(PokemonNameToId("Ho-Oh"), "HO_OH");
     Assert(PokemonNameToId("ho oh"), "HO_OH");
+    Assert(PokemonNameToId("porygonz"), "PORYGON_Z");
+    Assert(PokemonNameToId("porygon z"), "PORYGON_Z");
 
     Assert(PokemonIdToName("nidoran_female"), PoGoCmp::NidoranFemaleName);
     Assert(PokemonIdToName("NIDORAN_MALE"), PoGoCmp::NidoranMaleName);
     Assert(PokemonIdToName("FARFETCHD"), "Farfetch'd");
     Assert(PokemonIdToName("MR_MIME"), "Mr. Mime");
     Assert(PokemonIdToName("HO_OH"), "Ho-Oh");
+    Assert(PokemonIdToName("PORYGON_Z"), "Porygon Z");
 
     return EXIT_SUCCESS;
 }
