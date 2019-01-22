@@ -2,6 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+///! @todo try to remove the self-dependency
 #include "../Lib/PoGoDb.h"
 #ifdef _MSC_VER
 // Disable couple MSVC's static analyser warnings coming from json.hpp
@@ -74,7 +75,26 @@ int main(int argc, char **argv)
     }
 
     using namespace PoGoCmp;
-    std::map<uint16_t, PokemonSpecie> pokemonTable;
+
+    struct PokemonSpecieTemp
+    {
+        PokedexNumber number;
+        uint16_t baseAtk;
+        uint16_t baseDef;
+        uint16_t baseSta;
+        std::string id;
+        // Not in main PokemonSpecie struct yet, T.B.D.
+        std::string formId;
+        PokemonType type;
+        PokemonType type2;
+        PokemonRarity rarity;
+        uint8_t buddyDistance;
+        float malePercent;
+        float femalePercent;
+    };
+
+    using PokemonTable = std::multimap<uint16_t, PokemonSpecieTemp>;
+    PokemonTable pokemonTable;
     std::set<std::string> pokemonTypes;
     std::string dateTimeOffset;
 
@@ -121,6 +141,7 @@ int main(int argc, char **argv)
         dateTimeOffset = DateTimeOffsetString(timestampS);
         std::cout << "Input file's timestamp " << dateTimeOffset << "\n";
 
+        const std::regex formPattern{"FORMS_V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "FORMS_V0122_POKEMON_MR_MIME"
         const std::regex spawnIdPattern{"SPAWN_V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "SPAWN_V0122_POKEMON_MR_MIME"
         const std::regex idPattern{"V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "V0122_POKEMON_MR_MIME"
         const std::regex typePattern{"POKEMON_TYPE_(\\w+)"}; // e.g. "POKEMON_TYPE_PSYCHIC"
@@ -168,13 +189,63 @@ int main(int argc, char **argv)
 
                 pokemonTypes.insert(matches[1]);
             }
+            else if (std::regex_match(templateId, matches, formPattern))
+            {
+                //"templateId": "FORMS_V0351_POKEMON_CASTFORM",
+                //"formSettings": {
+                //  "pokemon": "CASTFORM",
+                //  "forms": [{
+                //    "form": "CASTFORM_NORMAL",
+                //    "assetBundleValue": 11
+                //  }, {
+                //    "form": "CASTFORM_SUNNY",
+                //    "assetBundleValue": 12
+                //  }, {
+                //    "form": "CASTFORM_RAINY",
+                //    "assetBundleValue": 13
+                //  }, {
+                //    "form": "CASTFORM_SNOWY",
+                //    "assetBundleValue": 14
+                //  }]
+
+                // Form information comes first. Initialize the specie/form data in pokemonTable.
+                PokemonSpecieTemp pkm{};
+                pkm.type = pkm.type2 = PokemonType::NONE;
+                pkm.number = (uint16_t)std::stoi(matches[1]);
+                auto formSettings = itemTemplate["formSettings"];
+                pkm.id = formSettings["pokemon"];
+                auto forms = formSettings.find("forms");
+                if (forms != formSettings.end())
+                {
+                    for (const auto& form : *forms)
+                    {
+                        pkm.formId = form["form"];
+                        pokemonTable.insert({ pkm.number, pkm });
+                    }
+                }
+                else
+                {
+                    pokemonTable.insert({ pkm.number, pkm });
+                }
+            }
             else if (std::regex_match(templateId, matches, spawnIdPattern))
             {
                 // "Spawn" (gender) information comes before the main information.
-                PokemonSpecie pkm{};
-                pkm.type = pkm.type2 = PokemonType::NONE;
-                pkm.number = (uint16_t)std::stoi(matches[1]);
-                pkm.id = itemTemplate["genderSettings"]["pokemon"];
+                // There seems to be extraneous information for every Pokémon with multiple forms,
+                // e.g. RATTATA, RATTATA_ALOLA and RATTATA_NORMAL. Discard the ones without form postfix.
+                auto number = (uint16_t)std::stoi(matches[1]);
+                auto forms = pokemonTable.equal_range(number);
+                const std::string formId = matches[2];
+                auto it = std::distance(forms.first, forms.second) == 1
+                    ? forms.first
+                    : std::find_if(forms.first, forms.second, [&formId](const auto& form) { return formId == form.second.formId; });
+                if (it == pokemonTable.end())
+                {
+                    std::cout << "skip " << number << " " << formId << "\n";
+                    continue;
+                }
+
+                auto& pkm = it->second;
                 auto gender = itemTemplate["genderSettings"]["gender"];
                 auto malePercent = gender.find("malePercent");
                 if (malePercent != gender.end())
@@ -187,78 +258,75 @@ int main(int argc, char **argv)
                     pkm.malePercent = pkm.femalePercent = 0.f;
                 pkm.malePercent *= 100;
                 pkm.femalePercent *= 100;
-                //! @todo Need to take forms into consideration. For now only insert the main entry.
-                //! Unown (29, same stats, 27 released currently)
-                //! Castform (4, same stas, different moves)
-                //! Deoxys (4, completely different)
-                if (pokemonTable.find(pkm.number) == pokemonTable.end())
-                {
-                    pokemonTable[pkm.number] = pkm;
-                }
-                else
-                {
-                    std::cout << pkm.number << " " << /*pkm.id*/matches[2] << " ignored\n";
-                }
             }
             else if (std::regex_match(templateId, matches, idPattern))
             {
                 const auto& settings = itemTemplate["pokemonSettings"];
                 auto number = (uint16_t)std::stoi(matches[1]);
                 auto id = settings["pokemonId"];//matches[2];
-                auto& pkm = pokemonTable[number];
-                assert(pkm.number == number);
-                assert(pkm.id == id);
-                if (pkm.baseAtk || pkm.baseDef || pkm.baseSta)
+                std::string idStr = id;
+                auto form = settings.find("form");
+                const std::string formName = form != settings.end() ? *form : id;
+                auto forms = pokemonTable.equal_range(number);
+                for(auto formIt = forms.first; formIt != forms.second; ++formIt)
                 {
-                    // Stats already filled, this a new form, skip (normal forms are first in the data).
-                    continue;
-                }
+                    auto& pkm = formIt->second;
+                    // There seems to be extraneous information for every Pokémon with multiple forms,
+                    // e.g. RATTATA, RATTATA_ALOLA and RATTATA_NORMAL. Discard the ones without form postfix.
+                    // Also e.g. Unown and Spinda are missing the "form" and have only a single data entry for all forms.
+                    if ((!pkm.formId.empty() && formName == pkm.formId) ||
+                        formName == pkm.id ||
+                        pkm.formId.find(formName) == 0)
+                    {
+                        //if (!pkm.formId.empty())
+                        //    pkm.id = pkm.formId;
+                        pkm.baseAtk = settings["stats"]["baseAttack"];
+                        pkm.baseDef = settings["stats"]["baseDefense"];
+                        pkm.baseSta = settings["stats"]["baseStamina"];
+                        // Primary type
+                        std::string type = settings["type"];
+                        std::regex_match(type, matches, typePattern);
+                        pkm.type = StringToPokemonType(matches[1].str().c_str());
+                        assert(pkm.type != PokemonType::NONE);
+                        // Secondary type, if applicable
+                        auto it = settings.find("type2");
+                        if (it != settings.end())
+                        {
+                            const std::string type2 = *it;
+                            std::regex_match(type2, matches, typePattern);
+                            pkm.type2 = StringToPokemonType(matches[1].str().c_str());
+                            assert(pkm.type2 != PokemonType::NONE);
+                        }
+                        else
+                        {
+                            assert(pkm.type2 == PokemonType::NONE);
+                        }
+                        // Rarity
+                        it = settings.find("rarity"); // exists only for legendary and mythic Pokemon
+                        //! @todo most of the baby Pokemon can be identified using buddySize but not all
+                        //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
+                        if (it != settings.end() && *it == "POKEMON_RARITY_LEGENDARY")
+                        {
+                            pkm.rarity = PokemonRarity::LEGENDARY;
+                        }
+                        else if (it != settings.end() && *it == "POKEMON_RARITY_MYTHIC")
+                        {
+                            pkm.rarity = PokemonRarity::MYTHIC;
+                        }
+                        //else if (buddySize != settings.end() && *buddySize == "BUDDY_BABY")
+                        //    pkm.rarity = PokemonRarity::BABY;
+                        else
+                        {
+                            pkm.rarity = PokemonRarity::NORMAL;
+                        }
+                        assert(pkm.rarity != PokemonRarity::NONE);
 
-                pkm.baseAtk = settings["stats"]["baseAttack"];
-                pkm.baseDef = settings["stats"]["baseDefense"];
-                pkm.baseSta = settings["stats"]["baseStamina"];
-                // Primary type
-                std::string type = settings["type"];
-                std::regex_match(type, matches, typePattern);
-                pkm.type = StringToPokemonType(matches[1].str().c_str());
-                assert(pkm.type != PokemonType::NONE);
-                // Secondary type, if applicable
-                auto it = settings.find("type2");
-                if (it != settings.end())
-                {
-                    std::string type2 = *it;
-                    std::regex_match(type2, matches, typePattern);
-                    pkm.type2 = StringToPokemonType(matches[1].str().c_str());
-                    assert(pkm.type2 != PokemonType::NONE);
+                        // kmBuddyDistance is stored as double but is always a whole number
+                        double buddyDistance = settings["kmBuddyDistance"];
+                        pkm.buddyDistance = (uint8_t)buddyDistance;
+                        assert(pkm.buddyDistance == buddyDistance);
+                    }
                 }
-                else
-                {
-                    assert(pkm.type2 == PokemonType::NONE);
-                }
-                // Rarity
-                it = settings.find("rarity"); // exists only for legendary and mythic Pokemon
-                //! @todo most of the baby Pokemon can be identified using buddySize but not all
-                //auto buddySize = settings.find("buddySize"); // exists only for Pokemon with special buddy placement
-                if (it != settings.end() && *it == "POKEMON_RARITY_LEGENDARY")
-                {
-                    pkm.rarity = PokemonRarity::LEGENDARY;
-                }
-                else if (it != settings.end() && *it == "POKEMON_RARITY_MYTHIC")
-                {
-                    pkm.rarity = PokemonRarity::MYTHIC;
-                }
-                //else if (buddySize != settings.end() && *buddySize == "BUDDY_BABY")
-                //    pkm.rarity = PokemonRarity::BABY;
-                else
-                {
-                    pkm.rarity = PokemonRarity::NORMAL;
-                }
-                assert(pkm.rarity != PokemonRarity::NONE);
-
-                // kmBuddyDistance is stored as double but is always a whole number
-                double buddyDistance = settings["kmBuddyDistance"];
-                pkm.buddyDistance = (uint8_t)buddyDistance;
-                assert(pkm.buddyDistance == buddyDistance);
             }
         }
     }
@@ -290,6 +358,8 @@ R"(
 #include <string>
 #include <array>
 #include <map>
+#include <algorithm>
+#include <locale>
 #ifndef _WIN32
 #include <strings.h> // strcasecmp()
 #endif
@@ -423,10 +493,13 @@ enum class PokemonType : int8_t
     NUM_TYPES
 };
 
+//! 0 is an invalid number.
+using PokedexNumber = std::uint16_t;
+
 struct PokemonSpecie
 {
     //! Pokédex number.
-    uint16_t number;
+    PokedexNumber number;
     //! Base attack.
     uint16_t baseAtk;
     //! Base defence.
@@ -467,7 +540,8 @@ struct PokemonSpecie
             assert(!IsZero(scalar));
             output << typeEffectiveness[i][j];
             if (!Equals(scalar, 1)) output << "f";
-            if (j < numTypes - 1) output << ", ";
+            if (j < numTypes - 1) output << ",";
+            output << " ";
         }
         output << "}";
         if (i < numTypes - 1) output << ",";
@@ -477,32 +551,49 @@ struct PokemonSpecie
     //output << "};\n\n";
 
 
-    auto writePokemon = [&output](const PokemonSpecie& pkm)
+    auto writePokemon = [&](const PokemonSpecieTemp& pkm)
     {
         output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
-            << ", " << std::quoted(pkm.id) << ", PokemonType::" << PokemonTypeToString(pkm.type)
-            << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", PokemonRarity::"
-            << PokemonRarityToString(pkm.rarity) << ", " << (int)pkm.buddyDistance << ", "
-            << pkm.malePercent << ", " << pkm.femalePercent << " }";
+            << ", " << std::quoted(!pkm.formId.empty() ? pkm.formId : pkm.id) << ", PokemonType::"
+            << PokemonTypeToString(pkm.type) << ", PokemonType::" << PokemonTypeToString(pkm.type2)
+            << ", PokemonRarity::" << PokemonRarityToString(pkm.rarity) << ", " << (int)pkm.buddyDistance
+            << ", " << pkm.malePercent << ", " << pkm.femalePercent << " }";
     };
 
-    //auto writePokemonMap = [&](const auto& key, const PokemonSpecie& pkm)
-    //{
-    //    output << indent << "{ " << key << ", " << writePokemon(pkm) << " },\n";
-    //};
+    auto writePokemonMapEntry = [&](const PokemonTable::key_type& key, const PokemonSpecieTemp& pkm)
+    {
+        output << indent << "{ " << key << ", ";
+        writePokemon(pkm);
+        output << " },\n";
+    };
+
+    auto writeForms = [&](const auto& formRange)
+    {
+        //output << "{\n";
+        for(auto formIt = formRange.first; formIt != formRange.second; ++formIt)
+        {
+            //output << indent << indent;
+            writePokemonMapEntry(formIt->first, formIt->second);
+            //writePokemon(it->second);
+            //output << ",\n";
+            //output << indent << indent;
+        }
+        //output << indent << "},\n";
+    };
 
     //output << "static const std::map<uint16_t, PokemonSpecie> PokemonByNumber {\n";
-    output << "//! Use PokemonIndex() for the index in PoGoCmp::PokemonByNumber.\n";
-    // NOTE double-brace syntax needed for the array's initializer list ctor
-    output << "static const std::array<PokemonSpecie, " << pokemonTable.size() << "> PokemonByNumber{{\n";
-    for (const auto& it : pokemonTable)
+    output << "//! A Pokémon can have multiple forms.\n";
+    //output << "//! Use PokemonIndex() for the index in PoGoCmp::PokemonByNumber.\n";
+    //output << "static const std::array<std::vector<PokemonSpecie>, " << pokemonTable.size() << "> PokemonByNumber{\n";
+    output << "static const std::multimap<uint16_t, PokemonSpecie> PokemonByNumber{\n";
+    for(auto it = pokemonTable.begin(), end = pokemonTable.end();
+        it != end;
+        it = pokemonTable.upper_bound(it->first)) // iterate only unique keys
     {
-        output << indent;
-        writePokemon(it.second);
-        output << ",\n";
-        //writePokemonMap(it.second.number, it.second);
+        //output << indent;
+        writeForms(pokemonTable.equal_range(it->first));
     }
-    output << "}};\n\n";
+    output << "};\n\n";
 
     output <<
 R"(//! Case-insensitive string comparison.
@@ -514,6 +605,14 @@ static inline int CompareI(const char* str1, const char* str2)
     return strcasecmp(str1, str2);
 #endif
 }
+
+struct StringLessThanI
+{
+    bool operator()(const std::string& lhs, const std::string& rhs) const
+    {
+        return CompareI(lhs.c_str(), rhs.c_str()) < 0;
+    }
+};
 
 )";
 
@@ -535,17 +634,16 @@ static inline int CompareI(const char* str1, const char* str2)
 
     output <<
 R"(
-//! Pokedex number range
-using PokedexRange = std::pair<size_t, size_t>;
-const PokedexRange Gen1Range{ 1, 151 };
-const PokedexRange Gen2Range{ 152, 251 };
-const PokedexRange Gen3Range{ 252, 386 };
-const PokedexRange Gen4Range{ 387, 493 };
+using PokedexRange = std::pair<PokedexNumber, PokedexNumber>;
+const PokedexRange Gen1Range{ PokedexNumber{1}, PokedexNumber{151} };
+const PokedexRange Gen2Range{ PokedexNumber{152}, PokedexNumber{251} };
+const PokedexRange Gen3Range{ PokedexNumber{252}, PokedexNumber{386} };
+const PokedexRange Gen4Range{ PokedexNumber{387}, PokedexNumber{493} };
 const PokedexRange LatestGenRange{ Gen4Range };
 //! Meltan and Melmetal
-const PokedexRange UnknownRange{ 808, 809};
+const PokedexRange UnknownRange{ PokedexNumber{808}, PokedexNumber{809} };
 //! Range for known generations, unknown Pokémon appended to the end
-const PokedexRange MaxRange{ 1, PoGoCmp::PokemonByNumber.size() };
+const PokedexRange MaxRange{ PokedexNumber{1}, (PokedexNumber)PoGoCmp::PokemonByNumber.size() };
 const std::array<PokedexRange, 2> ValidRanges{{
     { Gen1Range.first, LatestGenRange.second },
     { UnknownRange }
@@ -592,35 +690,48 @@ static inline const char* PokemonRarityToString(PokemonRarity rarity)
     return "";
 }
 
-struct StringLessThanI
-{
-    bool operator()(const std::string& lhs, const std::string& rhs) const
-    {
-        return CompareI(lhs.c_str(), rhs.c_str()) < 0;
-    }
-};
-
-static inline size_t PokemonIndex(size_t number)
-{
-    if (number == 808) return LatestGenRange.second;
-    else if (number == 809) return LatestGenRange.second + 1;
-    else return number - 1;
-}
-
+//! Maps Pokémon's base name to names of its forms, if Pokémon has multiple forms.
 //! Case-insensitive.
 //! @sa PokemonNameToId, PokemonIdToName
-static const std::map<std::string, const PokemonSpecie*, StringLessThanI> PokemonByIdName {
+static const std::multimap<std::string, std::string, StringLessThanI> FormNames{
 )";
-    // Since the introduction of Meltan and Melmetal, we cannot trust
-    // that the Pokémon numbers match to consecutive indices.
-    size_t idx{ 0 };
     for (const auto& it : pokemonTable)
     {
-        output << indent << "{ " << std::quoted(it.second.id) << ", &PokemonByNumber[" << idx++ /*it.first - 1*/ << "] },\n" ;
+        const auto& pkm = it.second;
+        if (!pkm.formId.empty())
+            output << indent << "{ " << std::quoted(pkm.id) << ", " << std::quoted(pkm.formId) << " },\n" ;
     }
     output << "};";
     output <<
 R"(
+
+static inline PokemonSpecie PokemonByIdName(const std::string& id)
+{
+    if (auto it = std::find_if(
+            PokemonByNumber.begin(), PokemonByNumber.end(),
+            [&id](const auto& kvp) { return CompareI(kvp.second.id.c_str(), id.c_str()) == 0; }
+        );
+        it != PokemonByNumber.end())
+    {
+        return it->second;
+    }
+
+    if (auto it = std::find_if(
+            FormNames.begin(), FormNames.end(),
+            [&id](const auto& kvp) { return CompareI(kvp.first.c_str(), id.c_str()) == 0; }
+        );
+        it != FormNames.end())
+    {
+        return PokemonByIdName(it->second);
+    }
+
+    return {};
+}
+
+static inline bool IsValidIdName(const std::string& id)
+{
+    return PokemonByIdName(id).number != 0;
+}
 
 // Pokémon whose names don't directly match the ID name.
 static const std::string MrMimeName{ "Mr. Mime" };
@@ -630,28 +741,55 @@ static const std::string HoOhName{ "Ho-Oh" };
 // on MSVC unless the file would be saved as UTF-16 LE BOM which I don't want to do.
 static const Utf8::String NidoranFemaleName{ u8"Nidoran\u2640" };
 static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
+// N.B. "Porygon2" and "Porygon Z" inconsitency
+static const Utf8::String PorygonZName{ "Porygon Z" };
 // - Mime Jr. -> Unknown at the moment, probably MIME_JR
 // - Flabébé -> Unknown at the moment, probably FLABEBE
 static const std::string EmptyString;
 
-//! Returns ID name corresponding the Pokémon's proper name, case-insensitive.
-//! @note "Nidoran Female", "Nidoran Male", "Mr Mime" and "Ho Oh" accepted also.
-static inline const std::string& PokemonNameToId(const Utf8::String& name)
+//! Returns Pokémon's proper name (base, e.g. Rattata, or form, e.g. Rattata Normal) in ID name format (UPPERCASE_WITH_UNDERSOCES)
+//! @note "Nidoran Female", "Nidoran Male", "Mr Mime", "Ho Oh" and "PorygonZ" accepted also.
+static inline std::string PokemonNameToId(Utf8::String name)
 {
-    // PokemonByNumber[29-1]    // "NIDORAN_FEMALE
-    // PokemonByNumber[32-1]    // "NIDORAN_MALE"
-    // PokemonByNumber[83-1]    // "FARFETCHD"
-    // PokemonByNumber[122-1]   // "MR_MIME"
-    // PokemonByNumber[250-1]   // "HO_OH"
-    if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0) { return PokemonByNumber[29-1].id; }
-    else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0) { return PokemonByNumber[32-1].id; }
-    else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0) { return PokemonByNumber[83-1].id; }
-    else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0) { return PokemonByNumber[122-1].id; }
-    else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0) { return PokemonByNumber[250-1].id; }
+    // PokemonByNumber[29]    // "NIDORAN_FEMALE
+    // PokemonByNumber[32]    // "NIDORAN_MALE"
+    // PokemonByNumber[83]    // "FARFETCHD"
+    // PokemonByNumber[122]   // "MR_MIME"
+    // PokemonByNumber[250]   // "HO_OH"
+    // PokemonByNumber[474]   // "PORYGON_Z"
+
+    if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0)
+    {
+        return PokemonByNumber.find(29)->second.id;
+    }
+    else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0)
+    {
+        return PokemonByNumber.find(32)->second.id;
+    }
+    else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0)
+    {
+        return PokemonByNumber.find(83)->second.id;
+    }
+    else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0)
+    {
+        return PokemonByNumber.find(122)->second.id;
+    }
+    else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0)
+    {
+        return PokemonByNumber.find(255)->second.id;
+    }
+    else if (Utf8::CompareI(name.c_str(), PorygonZName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "PorygonZ") == 0)
+    {
+        return PokemonByNumber.find(474)->second.id;
+    }
     else
     {
-        auto it = PokemonByIdName.find(name);
-        return it != PokemonByIdName.end() ? it->second->id : EmptyString;
+        const auto& cLocale = std::locale::classic();
+        std::transform(
+            name.begin(), name.end(), name.begin(),
+            [&cLocale](auto c) { if (c == ' ') return '_'; else return std::toupper(c, cLocale); }
+        );
+        return name;
     }
 }
 
@@ -663,6 +801,7 @@ static inline const std::string& PokemonNameToId(const Utf8::String& name)
 //! - Mime Jr. -> Unknown at the moment, probably MIME_JR
 //! - Flabébé -> Unknown at the moment, probably FLABEBE
 //! - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
+//! - Porygon Z -> PORYGON_Z
 static inline const Utf8::String& PokemonIdToName(const std::string& name)
 {
     if (CompareI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
@@ -670,6 +809,7 @@ static inline const Utf8::String& PokemonIdToName(const std::string& name)
     else if (CompareI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
     else if (CompareI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
     else if (CompareI(name.c_str(), "HO_OH") == 0) return HoOhName;
+    else if (CompareI(name.c_str(), "PORYGON_Z") == 0) return PorygonZName;
     else return name;
 }
 

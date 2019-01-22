@@ -11,7 +11,7 @@
 //template <typename ValueType>
 struct ProgramOption
 {
-    ProgramOption() {}
+    ProgramOption() = default;
     //! type is deduced automatically from the shortName or longName.
     ProgramOption(const std::string& sn, const std::string& ln, const std::wstring& h) :
         shortName(sn), longName(ln), help(Utf8::FromWString(h))
@@ -27,7 +27,7 @@ struct ProgramOption
 
     enum Type : bool { Cmd, Arg };
 
-    Type type;
+    Type type{};
     std::string shortName;
     std::string longName;
     Utf8::String help;
