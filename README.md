@@ -11,7 +11,7 @@ Project description TBA.
 
 ## Prerequisites
 - CMake (3.0.2 or newer)
-- C++14-capable compiler
+- C++17-capable compiler
 
 ## Dependencies
  - [JSON for Modern C++ 3.1.1](https://github.com/nlohmann/json), embedded in the repository
