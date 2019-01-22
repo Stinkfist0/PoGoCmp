@@ -7,9 +7,9 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
     packages:
-      - g++-5
+      - g++-8
 
 script:
-  - CXX=/usr/bin/g++-5 CC=/usr/bin/gcc-5 cmake . 
+  - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake . 
   - cmake --build . -- -j2
   - ctest --verbose -j2
