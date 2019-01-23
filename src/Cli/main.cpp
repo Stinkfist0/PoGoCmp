@@ -200,6 +200,10 @@ const std::vector<ProgramOption> programsOptions{
     { "", "--rarity",
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
         "By default all rarities are included."},
+    { "", "--showDuplicateForms",
+        L"Show duplicate Pokémon forms, i.e. forms that differ only by name and type. "
+        "By default, duplicates (same base stats) are not shown."},
+    //! @todo --effective - show the effective IVs, (iv + base stat) * CPM
     // Commands
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
@@ -218,9 +222,6 @@ const std::vector<ProgramOption> programsOptions{
         L"Only single name/ID/number as an argument supported."
     },
     { "info", "", L"Print information about the available data set." }
-    //! @todo --unique - show only unique forms (do not list e.g. 27 Unown with identical stats),
-    //! or --duplicate (make unique the default behavior)
-    //! @todo --effective - show the effective IVs, (iv + base stat) * CPM
 };
 
 //! @todo indentation
@@ -596,9 +597,19 @@ int main(int argc, char **argv)
                 [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); });
         }
 
-        std::sort(results.begin(), results.end(), [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs) {
-            return sortCmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
-        });
+        // remove duplicate and overlapping results
+        std::sort(
+            results.begin(), results.end(),
+            [](const auto& a, const auto& b)
+            {
+                if (a.number < b.number) return true;
+                if (a.number > b.number) return false;
+
+                if (Utf8::CompareI(a.id.c_str(), b.id.c_str()) < 0) return true;
+
+                return false;
+            }
+        );
 
         results.erase(
             std::unique(
@@ -608,7 +619,25 @@ int main(int argc, char **argv)
             results.end()
         );
 
+        // --showDuplicateForms
+
+        if (!opts.HasOption("", "--showDuplicateForms"))
+        {
+            results.erase(
+                std::unique(
+                    results.begin(), results.end(),
+                    [](const auto& a, const auto& b)
+                    {
+                        return a.number == b.number &&
+                            a.baseAtk == b.baseAtk && a.baseDef == b.baseDef && a.baseSta == b.baseSta;
+                    }
+                ),
+                results.end()
+            );
+        }
+
         // --rarity
+
         std::vector<PoGoCmp::PokemonRarity> rarities{
             PoGoCmp::PokemonRarity::NORMAL,
             PoGoCmp::PokemonRarity::LEGENDARY,
@@ -662,6 +691,16 @@ int main(int argc, char **argv)
             );
         }
 
+        // Finally sort according the sorting criteria...
+        std::sort(
+            results.begin(), results.end(),
+            [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs)
+            {
+                return sortCmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));
+            }
+        );
+
+        // ...and show the results.
         const auto numMatches = (int)results.size();
             //std::accumulate(results.begin(), results.end(), 0,
             //[](const auto& a, const auto& b) { return a + (int)b.second.size(); });
