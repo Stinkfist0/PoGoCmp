@@ -13,7 +13,7 @@ namespace StringUtils
 
 enum SplitOptions : bool { RemoveEmptyEntries, KeepEmptyEntries };
 
-std::vector<std::string> Split(const std::string &s, char delim, SplitOptions opts)
+static inline std::vector<std::string> Split(const std::string &s, char delim, SplitOptions opts)
 {
     std::vector<std::string> entries;
     std::istringstream stream{ s };
@@ -25,6 +25,7 @@ std::vector<std::string> Split(const std::string &s, char delim, SplitOptions op
    return entries;
 }
 
+//! Converts snake_case or SCREAMING_NAKE_CASE
 static inline void SnakeCaseToTitleCase(std::string &str)
 {
     if (str.empty()) return;

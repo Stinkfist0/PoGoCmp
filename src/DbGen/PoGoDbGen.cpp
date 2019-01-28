@@ -353,6 +353,7 @@ R"(
 #pragma once
 
 #include "Utf8.h"
+#include "StringUtils.h"
 
 #include <cstdint>
 #include <string>
@@ -383,7 +384,7 @@ R"(enum class PokemonRarity : uint8_t
     NORMAL,
     //! Obtainable only from raids, cannot be placed in gyms.
     LEGENDARY,
-    //! Obtainability unclear, no mythic Pokemon released yet.
+    //! Obtainable e.g. from raids and special researches. Cannot typically be placed in gyms.
     MYTHIC
 };
 )";
@@ -661,13 +662,13 @@ struct Pokemon
     uint16_t sta;
 };
 
-const std::array<Pokemon, 5> RaidLevels{{
+const std::array<Pokemon, 6> RaidLevels{{
     { 21, 15, 15, 600 },
     { 25, 15, 15, 1800 },
     { 30, 15, 15, 3000 },
     { 40, 15, 15, 7500 },
-    { 40, 15, 15, 12500 }
-    //! @todo "level 6" (level 5 but with more health (Mewtwo in regular raids)
+    { 40, 15, 15, 12500 },
+    { 40, 15, 15, 18750 } // level 5 but with more health (e.g. Mewtwo in regular raids)
 }};
 
 //! Case-insensitive.
@@ -741,46 +742,62 @@ static const std::string HoOhName{ "Ho-Oh" };
 // on MSVC unless the file would be saved as UTF-16 LE BOM which I don't want to do.
 static const Utf8::String NidoranFemaleName{ u8"Nidoran\u2640" };
 static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
+static const std::string UnownExclamationName{ "Unown !" };
+static const std::string UnownQuestionName{ "Unown ?" };
 // N.B. "Porygon2" and "Porygon Z" inconsitency
-static const Utf8::String PorygonZName{ "Porygon Z" };
-// - Mime Jr. -> Unknown at the moment, probably MIME_JR
+static const std::string PorygonZName{ "Porygon Z" };
+static const std::string MimeJrName{ "Mime Jr." };
 // - Flabébé -> Unknown at the moment, probably FLABEBE
-static const std::string EmptyString;
 
-//! Returns Pokémon's proper name (base, e.g. Rattata, or form, e.g. Rattata Normal) in ID name format (UPPERCASE_WITH_UNDERSOCES)
-//! @note "Nidoran Female", "Nidoran Male", "Mr Mime", "Ho Oh" and "PorygonZ" accepted also.
+//! Returns Pokémon's proper name (base, e.g. Rattata, or form, e.g. Rattata Normal) in ID name format (SCREAMING_SNAKE_CASE)
+//! @param name Handled case-insensitively.
+//! @note "Nidoran Female", "Nidoran Male", "Mr Mime", "Ho Oh", "Mime Jr" and "PorygonZ" accepted also.
 static inline std::string PokemonNameToId(Utf8::String name)
 {
-    // PokemonByNumber[29]    // "NIDORAN_FEMALE
-    // PokemonByNumber[32]    // "NIDORAN_MALE"
-    // PokemonByNumber[83]    // "FARFETCHD"
-    // PokemonByNumber[122]   // "MR_MIME"
-    // PokemonByNumber[250]   // "HO_OH"
-    // PokemonByNumber[474]   // "PORYGON_Z"
-
     if (Utf8::CompareI(name.c_str(), NidoranFemaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Female") == 0)
     {
-        return PokemonByNumber.find(29)->second.id;
+        return "NIDORAN_FEMALE";
     }
     else if (Utf8::CompareI(name.c_str(), NidoranMaleName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Nidoran Male") == 0)
     {
-        return PokemonByNumber.find(32)->second.id;
+        return "NIDORAN_MALE";
     }
     else if (Utf8::CompareI(name.c_str(), FarfetchdName.c_str()) == 0)
     {
-        return PokemonByNumber.find(83)->second.id;
+        return "FARFETCHD";
     }
     else if (Utf8::CompareI(name.c_str(), MrMimeName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mr Mime") == 0)
     {
-        return PokemonByNumber.find(122)->second.id;
+        return "MR_MIME";
+    }
+    else if (Utf8::CompareI(name.c_str(), UnownExclamationName.c_str()) == 0)
+    {
+        return "UNOWN_EXCLAMATION_POINT";
+    }
+    else if (Utf8::CompareI(name.c_str(), UnownQuestionName.c_str()) == 0)
+    {
+        return "UNOWN_QUESTION_MARK";
     }
     else if (Utf8::CompareI(name.c_str(), HoOhName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Ho Oh") == 0)
     {
-        return PokemonByNumber.find(250)->second.id;
+        return "HO_OH";
     }
+    //! @todo more generic solution for 00 -> 1 conversion?
+    else if (Utf8::CompareI(name.c_str(), "Spinda 1") == 0) { return "SPINDA_00"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 2") == 0) { return "SPINDA_01"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 3") == 0) { return "SPINDA_02"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 4") == 0) { return "SPINDA_03"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 5") == 0) { return "SPINDA_04"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 6") == 0) { return "SPINDA_05"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 7") == 0) { return "SPINDA_06"; }
+    else if (Utf8::CompareI(name.c_str(), "Spinda 8") == 0) { return "SPINDA_07"; }
     else if (Utf8::CompareI(name.c_str(), PorygonZName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "PorygonZ") == 0)
     {
-        return PokemonByNumber.find(474)->second.id;
+        return "PORYGON_Z";
+    }
+    else if (Utf8::CompareI(name.c_str(), MimeJrName.c_str()) == 0 || Utf8::CompareI(name.c_str(), "Mime Jr") == 0)
+    {
+        return "MIME_JR";
     }
     else
     {
@@ -802,19 +819,43 @@ static inline std::string PokemonNameToId(Utf8::String name)
 //! - Mr. Mime -> MR_MIME
 //! - Farfetch'd -> FARFETCHD
 //! - Ho-Oh -> HO_OH
-//! - Mime Jr. -> Unknown at the moment, probably MIME_JR
-//! - Flabébé -> Unknown at the moment, probably FLABEBE
+//! - Mime Jr. -> MIME_JR
 //! - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
 //! - Porygon Z -> PORYGON_Z
-static inline const Utf8::String& PokemonIdToName(const std::string& name)
+//! - Unown ? and Unown !
+//! - Spinda 1 (SPINDA_00), et al.
+//! - Flabébé -> Unknown at the moment, probably FLABEBE
+//! @param id Handled case-insensitively.
+static inline Utf8::String PokemonIdToName(const std::string& id)
 {
-    if (CompareI(name.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
-    else if (CompareI(name.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
-    else if (CompareI(name.c_str(), "FARFETCHD") == 0) return FarfetchdName;
-    else if (CompareI(name.c_str(), "MR_MIME") == 0) return MrMimeName;
-    else if (CompareI(name.c_str(), "HO_OH") == 0) return HoOhName;
-    else if (CompareI(name.c_str(), "PORYGON_Z") == 0) return PorygonZName;
-    else return name;
+    if (CompareI(id.c_str(), "NIDORAN_FEMALE") == 0) return NidoranFemaleName;
+    else if (CompareI(id.c_str(), "NIDORAN_MALE") == 0) return NidoranMaleName;
+    else if (CompareI(id.c_str(), "FARFETCHD") == 0) return FarfetchdName;
+    else if (CompareI(id.c_str(), "MR_MIME") == 0) return MrMimeName;
+    else if (CompareI(id.c_str(), "UNOWN_EXCLAMATION_POINT") == 0) return UnownExclamationName;
+    else if (CompareI(id.c_str(), "UNOWN_QUESTION_MARK") == 0) return UnownQuestionName;
+    else if (CompareI(id.c_str(), "HO_OH") == 0) return HoOhName;
+    else if (CompareI(id.c_str(), "SPINDA_00") == 0) return "Spinda 1";
+    else if (CompareI(id.c_str(), "SPINDA_01") == 0) return "Spinda 2";
+    else if (CompareI(id.c_str(), "SPINDA_02") == 0) return "Spinda 3";
+    else if (CompareI(id.c_str(), "SPINDA_03") == 0) return "Spinda 4";
+    else if (CompareI(id.c_str(), "SPINDA_04") == 0) return "Spinda 5";
+    else if (CompareI(id.c_str(), "SPINDA_05") == 0) return "Spinda 6";
+    else if (CompareI(id.c_str(), "SPINDA_06") == 0) return "Spinda 7";
+    else if (CompareI(id.c_str(), "SPINDA_07") == 0) return "Spinda 8";
+    else if (CompareI(id.c_str(), "PORYGON_Z") == 0) return PorygonZName;
+    else if (CompareI(id.c_str(), "MIME_JR") == 0) return MimeJrName;
+    else return StringUtils::SnakeCaseToTitleCase(id);
+}
+
+///! If the ID is an ID of a form, the base ID/name of the form is returned.
+static inline std::string FormIdToBaseId(const std::string& id)
+{
+    auto it = std::find_if(
+        FormNames.begin(), FormNames.end(),
+        [&id](const auto& kvp) { return CompareI(kvp.second.c_str(), id.c_str()) == 0; }
+    );
+    return it != FormNames.end() ? it->first : id;
 }
 
 )";
