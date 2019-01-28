@@ -136,20 +136,22 @@ Utf8::String FormatGender(float malePercent, float femalePercent)
     return Utf8::FromWString(genderText);
 }
 
+//! @param useBaseName For Pokémon with multiple forms with same stats, show only the base name (e.g. "Unown" instead of "Unown A").
 Utf8::String PokemonToString(
     const PoGoCmp::PokemonSpecie& base,
     //const Pokemon& pkm,
     int cp, Utf8::String fmt,
-    const std::string& sortCriteria)
+    const std::string& sortCriteria,
+    bool useBaseName)
 {
     using namespace StringUtils;
     const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type));
     const auto type2 = base.type2 == PoGoCmp::PokemonType::NONE
         ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type2));
     const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
-
     fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(base.number));
-    fmt = std::regex_replace(fmt, std::regex("%na"), SnakeCaseToTitleCase(PoGoCmp::PokemonIdToName(base.id)));
+    auto id = useBaseName ? PoGoCmp::FormIdToBaseId(base.id) : base.id;
+    fmt = std::regex_replace(fmt, std::regex("%na"), PoGoCmp::PokemonIdToName(id));
     fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(base.baseAtk));
     fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(base.baseDef));
     fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(base.baseSta));
@@ -621,17 +623,17 @@ int main(int argc, char **argv)
 
         // --showDuplicateForms
 
-        if (!opts.HasOption("", "--showDuplicateForms"))
+        const auto formsHaveSameStats = [](const auto& a, const auto& b)
+        {
+            return a.number == b.number &&
+                a.baseAtk == b.baseAtk && a.baseDef == b.baseDef && a.baseSta == b.baseSta;
+        };
+
+        const auto showDuplicateForms = opts.HasOption("", "--showDuplicateForms");
+        if (!showDuplicateForms)
         {
             results.erase(
-                std::unique(
-                    results.begin(), results.end(),
-                    [](const auto& a, const auto& b)
-                    {
-                        return a.number == b.number &&
-                            a.baseAtk == b.baseAtk && a.baseDef == b.baseDef && a.baseSta == b.baseSta;
-                    }
-                ),
+                std::unique(results.begin(), results.end(), formsHaveSameStats),
                 results.end()
             );
         }
@@ -702,15 +704,18 @@ int main(int argc, char **argv)
 
         // ...and show the results.
         const auto numMatches = (int)results.size();
-            //std::accumulate(results.begin(), results.end(), 0,
-            //[](const auto& a, const auto& b) { return a + (int)b.second.size(); });
-
         Utf8::Print(std::to_string(numMatches) + " matches (showing ");
-
         // negative number means 'show all'
         numResults = numResults < 0 ? numMatches : std::min(numResults, numMatches);
-
         Utf8::PrintLine(std::to_string(numResults) + (ascending ? " last" : " first") + " results):");
+
+        auto formNameSpecified = [&includes](const auto& id) -> bool
+        {
+            return std::find_if(
+                includes.begin(), includes.end(),
+                [&id](const auto& include) { return PokemonNameToId(include) == id;}
+            ) != includes.end();
+        };
 
         for (int i = 0; i < numMatches && i < numResults; ++i)
         {
@@ -720,7 +725,11 @@ int main(int argc, char **argv)
                 std::to_string(result.first.second) + ":"); */
             // if (verbose) Utf8::Print(std::to_string(i+1) + ": ");
 
-            Utf8::Print(PokemonToString(base, cp, format, sortCriteria));
+            const auto numSameStatsForms = std::unique(results.begin(), results.end(), formsHaveSameStats) - results.begin();
+            const bool useBaseName = !formNameSpecified(base.id) &&
+                !(numSameStatsForms > 1) && !showDuplicateForms;
+
+            Utf8::Print(PokemonToString(base, cp, format, sortCriteria, useBaseName));
         }
 
         ret = EXIT_SUCCESS;
