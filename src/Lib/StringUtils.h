@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <cstring>
 #include <locale>
 #include <sstream>

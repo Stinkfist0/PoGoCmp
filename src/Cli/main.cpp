@@ -1,6 +1,8 @@
-﻿#include "../Lib/PoGoCmp.h"
+﻿#include "ProgramOptions.h"
+
+#include "../Lib/PoGoCmp.h"
 #include "../Lib/PoGoDb.h"
-#include "ProgramOptions.h"
+#include "../Lib/MathUtils.h"
 
 #include <iostream>
 #include <string>
@@ -9,7 +11,6 @@
 #include <sstream>
 #include <regex>
 #include <functional>
-#include <numeric>
 #include <cmath>
 #include <climits>
 #include <cassert>
@@ -116,10 +117,6 @@ int MaxCp(const PoGoCmp::PokemonSpecie& base)
     return ComputeCp(base, (float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15);
 }
 
-//! @todo shared utility file for these
-bool Equals(float a, float b, float eps = 1e-5f) { return std::abs(a - b) < eps; }
-bool IsZero(float a, float eps = 1e-5f) { return Equals(a, 0, eps); }
-
 //! returns NAN if unknown criteria given
 float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& prop)
 {
@@ -130,7 +127,7 @@ float PropertyValueByName(const PoGoCmp::PokemonSpecie& pkm, const std::string& 
     else if (prop == "bulk") { return float(pkm.baseSta * pkm.baseDef); }
     else if (prop == "total") { return float(pkm.baseAtk + pkm.baseDef + pkm.baseSta); }
     else if (prop == "cp") { return float(MaxCp(pkm)); }
-    else if (prop == "gender") { return IsZero(pkm.malePercent) && IsZero(pkm.femalePercent) ? INFINITY : pkm.malePercent; }
+    else if (prop == "gender") { return MathUtils::IsZero(pkm.malePercent) && MathUtils::IsZero(pkm.femalePercent) ? INFINITY : pkm.malePercent; }
     else if (prop == "buddy") { return pkm.buddyDistance; }
     else { return NAN; }
 }
@@ -141,13 +138,13 @@ std::string FloatToString(float f) { std::stringstream ss; ss << f; return ss.st
 Utf8::String FormatGender(float malePercent, float femalePercent)
 {
     std::wstring genderText = L"○";
-    if (!IsZero(malePercent))
+    if (!MathUtils::IsZero(malePercent))
     {
         genderText = Utf8::ToWString(FloatToString(malePercent)) + L" % ♂";
     }
-    if (!IsZero(femalePercent))
+    if (!MathUtils::IsZero(femalePercent))
     {
-        if (IsZero(malePercent))
+        if (MathUtils::IsZero(malePercent))
             genderText = Utf8::ToWString(FloatToString(femalePercent)) + L" % ♀";
         else
             genderText += L" " + Utf8::ToWString(FloatToString(femalePercent)) + L" % ♀";
@@ -296,7 +293,7 @@ FloatComparator MakeComparator(const std::string& comp)
     if (comp == "<=") return FloatComparator([](float a, float b) { return a <= b; });
     if (comp == ">") return FloatComparator([](float a, float b) { return a > b; });
     if (comp == ">=") return FloatComparator([](float a, float b) { return a >= b; });
-    if (comp == "=") return FloatComparator([](float a, float b) { return Equals(a, b); });
+    if (comp == "=") return FloatComparator([](float a, float b) { return MathUtils::Equals(a, b); });
     //! \todo throw or some else error mechanism
     return FloatComparator([](float /*a*/, float /*b*/) { return true; });
 }
@@ -770,10 +767,10 @@ int main(int argc, char **argv)
             const auto step = 1.f / PoGoCmp::PokemonUpgrades.upgradesPerLevel;
             float dummy;
             const auto beginFract = std::modf(begin, &dummy);
-            if (!Equals(beginFract, 0.f) && !Equals(beginFract, step))
+            if (!MathUtils::Equals(beginFract, 0.f) && !MathUtils::Equals(beginFract, step))
                 LogErrorAndExit("Invalid factorial for range's begin.");
             const auto endFract = std::modf(end, &dummy);
-            if (!Equals(endFract, 0.f) && !Equals(endFract, step))
+            if (!MathUtils::Equals(endFract, 0.f) && !MathUtils::Equals(endFract, step))
                 LogErrorAndExit("Invalid factorial for range's end.");
 
             int candyTotal{}, dustTotal{};

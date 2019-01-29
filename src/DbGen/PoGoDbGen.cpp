@@ -4,6 +4,7 @@
 
 ///! @todo try to remove the self-dependency
 #include "../Lib/PoGoDb.h"
+#include "../Lib/MathUtils.h"
 #ifdef _MSC_VER
 // Disable couple MSVC's static analyser warnings coming from json.hpp
 // The C28020 in particular is probably a false positive.
@@ -25,10 +26,6 @@
 #include <set>
 #include <ctime>
 #include <map>
-
-//! @todo shared utility file for these
-bool Equals(float a, float b, float eps = 1e-5f) { return std::abs(a - b) < eps; }
-bool IsZero(float a, float eps = 1e-5f) { return Equals(a, 0, eps); }
 
 std::string FloatLiteralToString(float f)
 {
@@ -538,9 +535,9 @@ struct PokemonSpecie
         for (size_t j = 0; j < numTypes; ++j)
         {
             auto scalar = typeEffectiveness[i][j];
-            assert(!IsZero(scalar));
+            assert(!MathUtils::IsZero(scalar));
             output << typeEffectiveness[i][j];
-            if (!Equals(scalar, 1)) output << "f";
+            if (!MathUtils::Equals(scalar, 1)) output << "f";
             if (j < numTypes - 1) output << ",";
             output << " ";
         }
