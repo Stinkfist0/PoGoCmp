@@ -411,7 +411,9 @@ int main(int argc, char **argv)
                     {
                         const auto id = PoGoCmp::PokemonNameToId(rangeFirst);
                         range.first = PoGoCmp::PokemonByIdName(id).number;
-                        if (IsValidIdName(id) && IsFormName(id))
+                        if (range.first == 0)
+                            LogErrorAndExit("'" + rangeFirst + "' is not a valid name/ID.");
+                        if (IsFormName(id))
                             range.formId = id;
                     }
 
@@ -427,8 +429,8 @@ int main(int argc, char **argv)
                     {
                         const auto id = PoGoCmp::PokemonNameToId(rangeSecond);
                         range.second = PoGoCmp::PokemonByIdName(id).number;
-                        //if (IsValidIdName(id) && IsFormName(id))
-                        //    range.second.formId = id;
+                        if (range.second == 0)
+                            LogErrorAndExit("'" + rangeSecond + "' is not a valid name/ID.");
                     }
 
                     if (range.first != range.second && !range.formId.empty())
