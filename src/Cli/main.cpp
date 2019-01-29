@@ -14,7 +14,7 @@
 #include <climits>
 #include <cassert>
 
-const Utf8::String defaultFormat{ "%nu %na ATK %a DEF %d STA %s TYPE %Tt CP %cp\\n" };
+const Utf8::String defaultFormat{ "%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n" };
 
 void LogE(const Utf8::String& msg)
 {
@@ -39,6 +39,32 @@ void Log(const Utf8::String& msg)
 }
 
 //! @todo Move CP functions to the PoGoCmp API
+float GetCpm(float level)
+{
+    const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
+    if (level  < 1 || level > numLevels) return NAN;
+    float levelIdx;
+    auto levelFact = std::modf(level, &levelIdx);
+    if (levelFact != 0.f && levelFact != 0.5f) return NAN;
+    levelIdx -= 1;
+    auto nextLevelIdx = std::min(levelIdx + 1, numLevels -1);
+    auto cpmBase = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)levelIdx];
+    auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
+    auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
+    auto cpm = levelFact != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
+    return cpm;
+}
+
+//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
+//! @param atk baseAtk + atkIv, integer.
+//! @param def baseDef + defIv, integer.
+//! @param sta baseSta + staIv, integer.
+int ComputeCp(float level, float atk, float def, float sta)
+{
+    auto cpm = GetCpm(level);
+    if (std::isnan(cpm)) return -1;
+    return static_cast<int>(std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f));
+}
 
 //! https://pokemongo.gamepress.gg/pokemon-stats-advanced
 //! @param base Pokémon's base stats.
@@ -50,30 +76,23 @@ void Log(const Utf8::String& msg)
 //! @return < 0 on invalid input, > 0 otherwise
 int ComputeCp(const PoGoCmp::PokemonSpecie& base, float level, float atk, float def, float sta)
 {
-    const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
-    if (level  < 1 || level > numLevels) return -1;
     if (atk < 0 || atk > 15) return -1;
     if (def < 0 || def > 15) return -1;
     if (sta < 0 || sta > 15) return -1;
-
-    float levelIdx;
-    auto levelFact = std::modf(level, &levelIdx);
-    if (levelFact != 0.f && levelFact != 0.5f) return -1;
-    levelIdx -= 1;
-    auto nextLevelIdx = std::min(levelIdx + 1, numLevels -1);
-    auto cpmBase = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)levelIdx];
-    auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
-    auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
-    auto cpm = levelFact != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
     atk = base.baseAtk + atk;
     def = base.baseDef + def;
     sta = base.baseSta + sta;
-    return (int)std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f);
+    return ComputeCp(level, atk, def, sta);
 }
 
 int ComputeCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
 {
     return ComputeCp(base, pkm.level, pkm.atk, pkm.def, pkm.sta);
+}
+
+int ComputeStat(int base, int iv, float level)
+{
+    return int(float(base + iv) * GetCpm(level));
 }
 
 //! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
@@ -139,8 +158,8 @@ Utf8::String FormatGender(float malePercent, float femalePercent)
 //! @param useBaseName For Pokémon with multiple forms with same stats, show only the base name (e.g. "Unown" instead of "Unown A").
 Utf8::String PokemonToString(
     const PoGoCmp::PokemonSpecie& base,
-    //const Pokemon& pkm,
-    int cp, Utf8::String fmt,
+    const PoGoCmp::Pokemon& pkm,
+    Utf8::String fmt,
     const std::string& sortCriteria,
     bool useBaseName)
 {
@@ -149,23 +168,29 @@ Utf8::String PokemonToString(
     const auto type2 = base.type2 == PoGoCmp::PokemonType::NONE
         ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type2));
     const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
-    fmt = std::regex_replace(fmt, std::regex("%nu"), std::to_string(base.number));
+    fmt = std::regex_replace(fmt, std::regex{"%nu"}, std::to_string(base.number));
     auto id = useBaseName ? PoGoCmp::FormIdToBaseId(base.id) : base.id;
-    fmt = std::regex_replace(fmt, std::regex("%na"), PoGoCmp::PokemonIdToName(id));
-    fmt = std::regex_replace(fmt, std::regex("%a"), std::to_string(base.baseAtk));
-    fmt = std::regex_replace(fmt, std::regex("%d"), std::to_string(base.baseDef));
-    fmt = std::regex_replace(fmt, std::regex("%s"), std::to_string(base.baseSta));
-    fmt = std::regex_replace(fmt, std::regex("%Tt"), types);
-    fmt = std::regex_replace(fmt, std::regex("%T"), type);
-    fmt = std::regex_replace(fmt, std::regex("%t"), type2);
-    fmt = std::regex_replace(fmt, std::regex("%o"), FloatToString(PropertyValueByName(base, sortCriteria)));
-    fmt = std::regex_replace(fmt, std::regex("%cp"), std::to_string(cp));
-    fmt = std::regex_replace(fmt, std::regex("%b"), std::to_string(base.buddyDistance));
+    fmt = std::regex_replace(fmt, std::regex{"%na"}, PoGoCmp::PokemonIdToName(id));
+    fmt = std::regex_replace(fmt, std::regex{"%ba"}, std::to_string(base.baseAtk));
+    fmt = std::regex_replace(fmt, std::regex{"%a"}, std::to_string(ComputeStat(base.baseAtk, pkm.atk, pkm.level)));
+    fmt = std::regex_replace(fmt, std::regex{"%bd"}, std::to_string(base.baseDef));
+    fmt = std::regex_replace(fmt, std::regex{"%d"}, std::to_string(ComputeStat(base.baseDef, pkm.def, pkm.level)));
+    fmt = std::regex_replace(fmt, std::regex{"%bs"}, std::to_string(base.baseSta));
+    fmt = std::regex_replace(fmt, std::regex{"%s"}, std::to_string(ComputeStat(base.baseSta, pkm.sta, pkm.level)));
+    fmt = std::regex_replace(fmt, std::regex{"%Tt"}, types);
+    fmt = std::regex_replace(fmt, std::regex{"%T"}, type);
+    fmt = std::regex_replace(fmt, std::regex{"%t"}, type2);
+    fmt = std::regex_replace(fmt, std::regex{"%o"}, FloatToString(PropertyValueByName(base, sortCriteria)));
+    int cp = base.baseSta >= PoGoCmp::RaidLevels.begin()->sta // L1 raid boss should have easily more HP than any regular Pokémon
+        ? ComputeRaidBossCp(base, pkm)
+        : ComputeCp(base, pkm);
+    fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
+    fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
-    fmt = std::regex_replace(fmt, std::regex("%g"), FormatGender(base.malePercent, base.femalePercent));
+    fmt = std::regex_replace(fmt, std::regex{"%g"}, FormatGender(base.malePercent, base.femalePercent));
 
-    fmt = std::regex_replace(fmt, std::regex("\\\\n"), "\n");
-    fmt = std::regex_replace(fmt, std::regex("\\\\t"), "\t");
+    fmt = std::regex_replace(fmt, std::regex{"\\\\n"}, "\n");
+    fmt = std::regex_replace(fmt, std::regex{"\\\\t"}, "\t");
     return fmt;
 }
 
@@ -186,7 +211,8 @@ const std::vector<ProgramOption> programsOptions{
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
-        "%nu (number), %na (name), %a (base attack), %d (base defense), %s (base stamina), %T (primary type), %t (secondary type) "
+        "%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
+        "%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
         "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %b (buddy distance, km), "
         "(%g gender ratio by male percentage) \\n (new line), \\t (tab)"
         "Max. level and perfect IVs by default. See also --ivs and --level."
@@ -209,11 +235,11 @@ const std::vector<ProgramOption> programsOptions{
     // Commands
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
-        "number (default), attack/atk, defense/def, stamina/sta/hp, bulk (def*sta), total(atk+def+sta), gender, "
-        "or buddy (buddy distance). Comparison operator (<, <=, =, >, or >=) and value can be appended to the criteria, "
-        "e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon with base attack larger than "
-        "or equal to 200 to the results. A name of Pokémon can also be used as the value: in this case the property of "
-        "the specified Pokémon is used as the reference point."
+        "'number' (default), base 'attack'/'atk', base 'defense'/'def', base 'stamina'/'sta'/'hp', bulk (def*sta), "
+        "total (atk+def+sta), gender, or buddy (buddy distance). Comparison operator (<, <=, =, >, or >=) and value "
+        "can be appended to the criteria, e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon "
+        "with base attack larger than or equal to 200 to the results. A name of Pokémon can also be used as the value: "
+        "in this case the property of the specified Pokémon is used as the reference point."
     },
     { "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
@@ -720,7 +746,6 @@ int main(int argc, char **argv)
         for (int i = 0; i < numMatches && i < numResults; ++i)
         {
             const auto& base = results[i];
-            int cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
             /* if (verbose) Log("Pokédex range " + std::to_string(result.first.first) + "-" +
                 std::to_string(result.first.second) + ":"); */
             // if (verbose) Utf8::Print(std::to_string(i+1) + ": ");
@@ -729,7 +754,7 @@ int main(int argc, char **argv)
             const bool useBaseName = !formNameSpecified(base.id) &&
                 !(numSameStatsForms > 1) && !showDuplicateForms;
 
-            Utf8::Print(PokemonToString(base, cp, format, sortCriteria, useBaseName));
+            Utf8::Print(PokemonToString(base, pkm, format, sortCriteria, useBaseName));
         }
 
         ret = EXIT_SUCCESS;
