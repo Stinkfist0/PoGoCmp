@@ -513,9 +513,8 @@ int main(int argc, char **argv)
         pkm.def = 15;
         pkm.sta = 15;
 
-        if (opts.HasOption("--level"))
+        if (auto level = opts.OptionValue("--level"); !level.empty())
         {
-            auto level = opts.OptionValue("--level");
             try
             {
                 pkm.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
@@ -526,9 +525,8 @@ int main(int argc, char **argv)
             }
         }
 
-        if (opts.HasOption("--ivs"))
+        if (auto ivs = opts.OptionValue("--ivs"); !ivs.empty())
         {
-            auto ivs = opts.OptionValue("--ivs");
             if (std::count_if(ivs.begin(), ivs.end(),
                 [](auto c) { return std::isxdigit(c, std::locale::classic()); }) != 3)
             {
@@ -548,15 +546,13 @@ int main(int argc, char **argv)
             }
         }
 
-        const bool isRaidBoss = opts.HasOption("--raidLevel");
-        if (isRaidBoss)
+        if (auto level = opts.OptionValue("--raidLevel"); !level.empty())
         {
             if (opts.HasOption("--level"))
                 Log("--level value is ignored due to --raidLevel.");
             if (opts.HasOption("--ivs"))
                 Log("--ivs value is ignored due to --raidLevel.");
 
-            auto level = opts.OptionValue("--raidLevel");
             try
             {
                 auto raidLevel = ParseValue(level, 1, (int)RaidLevels.size());
@@ -673,8 +669,7 @@ int main(int argc, char **argv)
             PoGoCmp::PokemonRarity::LEGENDARY,
             PoGoCmp::PokemonRarity::MYTHIC
         };
-        auto rarityStrings = opts.OptionValues("--rarity");
-        if (!rarityStrings.empty())
+        if (auto rarityStrings = opts.OptionValues("--rarity"); !rarityStrings.empty())
         {
             rarities.clear();
             for (const auto& rarityStr : rarityStrings)
@@ -761,9 +756,9 @@ int main(int argc, char **argv)
 
         ret = EXIT_SUCCESS;
     }
-    else if (opts.HasOption("powerup"))
+    else if (auto powerup = opts.OptionValue("powerup"); !powerup.empty())
     {
-        auto powerupRange = Split(opts.OptionValue("powerup"), ',', StringUtils::RemoveEmptyEntries);
+        auto powerupRange = Split(powerup, ',', StringUtils::RemoveEmptyEntries);
         if (powerupRange.size() != 2)
             LogErrorAndExit("Power-up range must consist of two comma-separated numbers.");
 
@@ -799,9 +794,8 @@ int main(int argc, char **argv)
         }
         ret = EXIT_SUCCESS;
     }
-    else if (opts.HasOption("perfect-ivs"))
+    else if (auto val = opts.OptionValue("perfect-ivs"); !val.empty())
     {
-        auto val = opts.OptionValue("perfect-ivs");
         try
         {
             auto number = IsNumber(val)
