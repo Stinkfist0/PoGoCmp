@@ -203,8 +203,7 @@ const std::vector<ProgramOption> programsOptions{
         "a base name, all forms of the Pokémon are included in the results. In case of a form name, only the specific form is "
         "included in the results. A form name can be used only when specifying a single-Pokémon range. Multiple options supported."},
     { "-it", "--include-type", L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, "
-        "rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, or fairy."
-        "Multiple options supported."},
+        "rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, or fairy. Multiple options supported."},
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
@@ -233,7 +232,7 @@ const std::vector<ProgramOption> programsOptions{
     { "sort", "",
         L"Sort the Pokémon by certain criteria: "
         "'number' (default), base 'attack'/'atk', base 'defense'/'def', base 'stamina'/'sta'/'hp', bulk (def*sta), "
-        "total (atk+def+sta), gender, or buddy (buddy distance). Comparison operator (<, <=, =, >, or >=) and value "
+        "'total' (atk+def+sta), 'gender', or 'buddy' (buddy distance). Comparison operator (<, <=, =, >, or >=) and value "
         "can be appended to the criteria, e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon "
         "with base attack larger than or equal to 200 to the results. A name of Pokémon can also be used as the value: "
         "in this case the property of the specified Pokémon is used as the reference point."
@@ -246,7 +245,13 @@ const std::vector<ProgramOption> programsOptions{
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
         L"Only single name/ID/number as an argument supported."
     },
-    { "info", "", L"Print information about the available data set." }
+    { "info", "", L"Print information about the available data set." },
+    { "typeinfo", "",
+        L"Print typing information for the given type(s) or Pokémon."
+        "'typeinfo atk,<type1>[,type2]' prints attack(-combination)'s effectiveness against all types. "
+        "'typeinfo def,<type1>[,type2]' prints defending type(-combination)'s information against all types. "
+        "'typeinfo <pokemon> prints a single Pokémon's type information."
+    }
 };
 
 //! @todo indentation
@@ -308,7 +313,7 @@ bool IsFormName(const std::string& id)
 
 int main(int argc, char **argv)
 {
-    ProgamOptionMap opts{ Utf8::ParseArguments(argc, argv) };
+    ProgamOptionMap opts{Utf8::ParseArguments(argc, argv)};
     if (opts.args.empty())
     {
         LogE("Invalid usage.");
@@ -334,15 +339,6 @@ int main(int argc, char **argv)
     using namespace StringUtils;
     using namespace PoGoCmp;
 
-    //! @todo Use info also to list type-effectiveness, attacks, etc.
-    if (opts.HasOption("info"))
-    {
-        //! @todo
-        //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
-        Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
-        return EXIT_SUCCESS;
-    }
-
     if (opts.HasOption("-h", "--help"))
     {
         PrintHelp();
@@ -350,7 +346,103 @@ int main(int argc, char **argv)
     }
 
     int ret = EXIT_FAILURE;
-    if (opts.HasOption("sort"))
+
+    //! @todo Use info also to list type-effectiveness, attacks, etc.
+    if (opts.HasOption("info"))
+    {
+        //! @todo
+        //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
+        Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
+        ret = EXIT_SUCCESS;
+    }
+    else if (opts.HasOption("typeinfo"))
+    {
+        auto te = opts.OptionValue("typeinfo");
+        if (te.empty())
+            LogErrorAndExit("Arguments missing for typeinfo. ");
+
+        const auto allTypes = []
+        {
+            std::vector<std::pair<int, int>> types;
+            for (int i = 0; i < (int)PoGoCmp::PokemonType::NUM_TYPES; ++i)
+                types.emplace_back(/*(PoGoCmp::PokemonType)*/i, -1);
+            return types;
+        };
+
+        auto types = Split(te, ',', StringUtils::RemoveEmptyEntries);
+        if (types.size() == 0)
+             LogErrorAndExit("At least single type or Pokémon required as an input.");
+
+        // types as indices to TypeEffectiveness table
+        std::vector<std::pair<int, int>> attackTypes, defenderTypes;
+
+        const auto cmd = types[0];
+        if (cmd == "atk" || cmd == "def") // typeinfo <def|def>,<type1>[,type2]
+        {
+            if (types.size() < 2)
+                LogErrorAndExit("At least one type required as an argument.");
+
+            PoGoCmp::PokemonType type1{StringToPokemonType(types[1].c_str())};
+            if (type1 == PoGoCmp::PokemonType::NONE)
+                LogErrorAndExit(types[1] + " is not a valid type.");
+
+            PoGoCmp::PokemonType type2{PoGoCmp::PokemonType::NONE};
+            if (types.size() > 2)
+            {
+                type2 = StringToPokemonType(types[2].c_str());
+                if (type2 == PoGoCmp::PokemonType::NONE)
+                    LogErrorAndExit(types[2] + " is not a valid type.");
+            }
+
+            if (cmd == "def")
+            {
+                attackTypes = allTypes();
+                defenderTypes.emplace_back((int)type1, (int)type2);
+            }
+            else
+            {
+                attackTypes.emplace_back((int)type1, (int)type2);
+                defenderTypes = allTypes();
+            }
+        }
+        else // typeinfo <pokemon>
+        {
+            const auto id = PoGoCmp::PokemonNameToId(cmd);
+            auto pkm = PoGoCmp::PokemonByIdName(id);
+            if (pkm.number == 0)
+                LogErrorAndExit(types[0] + Utf8::FromWString(L" is not a valid argument nor a Pokémon."));
+
+            attackTypes = allTypes();
+
+            defenderTypes.emplace_back((int)pkm.type, (int)pkm.type2);
+        }
+
+        assert(!attackTypes.empty());
+        assert(!defenderTypes.empty());
+
+        //! @todo sort the results, NVE first, neutral second, SE last
+        for (const auto& at : attackTypes)
+        {
+            for (const auto& dt : defenderTypes)
+            {
+                const auto attack = (PoGoCmp::PokemonType)at.first;
+                const auto type1 = (PoGoCmp::PokemonType)dt.first;
+                const auto type2 = (PoGoCmp::PokemonType)dt.second;
+                auto scalar = PoGoCmp::TypeEffectiveness[at.first][dt.first];
+                if (type2 != PoGoCmp::PokemonType::NONE)
+                    scalar *= PoGoCmp::TypeEffectiveness[at.first][dt.second];
+
+                std::cout << SnakeCaseToTitleCase(PokemonTypeToString(attack)) << "-"
+                    << SnakeCaseToTitleCase(PokemonTypeToString(type1));
+                if (type2 != PoGoCmp::PokemonType::NONE)
+                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(type2));
+                std::cout << ": " << FloatToString(scalar) << "\n";
+            }
+        }
+
+        ret = EXIT_SUCCESS;
+    }
+    else if (opts.HasOption("sort"))
     {
         // E.g. "16,32", or "bulbasaur,ivysaur", or "250". The names can contain following
         // Unicode characters: ♀ (\u2640), ♂ (\u2642), é (\u00e9), É (\u00c9).
@@ -616,8 +708,10 @@ int main(int argc, char **argv)
             }
 
             const auto filterCmp = MakeComparator(compOpType);
-            std::copy_if(rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
-                [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); });
+            std::copy_if(
+                rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
+                [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); }
+            );
         }
 
         // remove duplicate and overlapping results
@@ -798,6 +892,7 @@ int main(int argc, char **argv)
             auto number = IsNumber(val)
                 ? (PokedexNumber)std::stoul(val)
                 : PoGoCmp::PokemonByIdName(PoGoCmp::PokemonNameToId(val)).number;
+            //! @todo form support
             auto pkm = PoGoCmp::PokemonByNumber.equal_range(number).first->second;
 
             // "<number>&cp<cpAtLevel1>,cp<cpAtLevel2>,..."
