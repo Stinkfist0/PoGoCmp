@@ -425,28 +425,44 @@ int main(int argc, char **argv)
             return scalar;
         };
 
-        //! @todo sort the results, NVE first, neutral second, SE last
+
+        struct TypeEffectiveness
+        {
+            PoGoCmp::PokemonType at1, at2;
+            PoGoCmp::PokemonType dt1, dt2;
+            float scalar;
+        };
+
+        std::vector<TypeEffectiveness> results;
         for (const auto& at : attackTypes)
         {
             for (const auto& dt : defenderTypes)
             {
-                std::cout << SnakeCaseToTitleCase(PokemonTypeToString(at.first));
-                if (at.second != PoGoCmp::PokemonType::NONE)
-                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(at.second));
-
-                std::cout << "-" << SnakeCaseToTitleCase(PokemonTypeToString(dt.first));
-                if (dt.second != PoGoCmp::PokemonType::NONE)
-                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(dt.second));
-
                 auto scalar = computeEffectiveness(at.first, dt.first, dt.second);
-
                 if (at.second != PoGoCmp::PokemonType::NONE)
                 {
                     scalar = std::max(scalar, computeEffectiveness(at.second, dt.first, dt.second));
                 }
 
-                std::cout << ": " << FloatToString(scalar) << "\n";
+                results.push_back({at.first, at.second, dt.first, dt.second, scalar});
             }
+        }
+
+        // sort the results, NVE first, neutral second, SE last
+        std::sort(
+            results.begin(), results.end(),
+            [](const auto& a, const auto& b) { return a.scalar < b.scalar; }
+        );
+
+        for (const auto& te: results)
+        {
+            std::cout << SnakeCaseToTitleCase(PokemonTypeToString(te.at1));
+            if (te.at2 != PoGoCmp::PokemonType::NONE)
+                std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(te.at2));
+            std::cout << " vs. " << SnakeCaseToTitleCase(PokemonTypeToString(te.dt1));
+            if (te.dt2 != PoGoCmp::PokemonType::NONE)
+                std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(te.dt2));
+            std::cout << ": " << FloatToString(te.scalar) << "\n";
         }
 
         ret = EXIT_SUCCESS;
