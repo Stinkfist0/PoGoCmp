@@ -49,7 +49,7 @@ struct ProgamOptionMap
     //! (shortName, longName)
     //using NamePair = std::pair <std::string, std::string>;
 
-    ProgamOptionMap(const StringVector& args) : args(args) {}
+    ProgamOptionMap(const StringVector& arguments) : args(arguments) {}
     //! @param argv The program invokation argument argv[0] is ignored.
     ProgamOptionMap(int argc, char **argv/*, const std::vector<ProgramOption>& options*/)
         : ProgamOptionMap({ argv + 1, argv + argc })

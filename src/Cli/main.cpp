@@ -563,9 +563,9 @@ int main(int argc, char **argv)
                             ") cannot be greater than max. (" + std::to_string(range.second) + ")");
                     }
 
-                    auto isWithinRange = [](const auto& range, const auto& value)
+                    auto isWithinRange = [](const auto& r, const auto& value)
                     {
-                        return value >= range.first && value <= range.second;
+                        return value >= r.first && value <= r.second;
                     };
 
                     if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
@@ -621,17 +621,17 @@ int main(int argc, char **argv)
             }
         }
 
-        Pokemon pkm{};
-        pkm.level = 40.f;
-        pkm.atk = 15;
-        pkm.def = 15;
-        pkm.sta = 15;
+        Pokemon pokemon{};
+        pokemon.level = 40.f;
+        pokemon.atk = 15;
+        pokemon.def = 15;
+        pokemon.sta = 15;
 
         if (auto level = opts.OptionValue("--level"); !level.empty())
         {
             try
             {
-                pkm.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
+                pokemon.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
             }
             catch (const std::exception& e)
             {
@@ -650,9 +650,9 @@ int main(int argc, char **argv)
             try
             {
                 auto values = std::stoul(ivs, nullptr, 16);
-                pkm.atk = (values & 0xF00) >> 8;
-                pkm.def = (values & 0x0F0) >> 4;
-                pkm.sta = (values & 0x00F);
+                pokemon.atk = (values & 0xF00) >> 8;
+                pokemon.def = (values & 0x0F0) >> 4;
+                pokemon.sta = (values & 0x00F);
             }
             catch (const std::exception& e)
             {
@@ -670,7 +670,7 @@ int main(int argc, char **argv)
             try
             {
                 auto raidLevel = ParseValue(level, 1, (int)RaidLevels.size());
-                pkm = RaidLevels[raidLevel - 1];
+                pokemon = RaidLevels[raidLevel - 1];
             }
             catch (const std::exception& e)
             {
@@ -735,7 +735,7 @@ int main(int argc, char **argv)
             const auto filterCmp = MakeComparator(compOpType);
             std::copy_if(
                 rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
-                [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); }
+                [&](const auto &pokemon) { return filterCmp(PropertyValueByName(pokemon, sortCriteria), compVal); }
             );
         }
 
@@ -867,7 +867,7 @@ int main(int argc, char **argv)
             const bool useBaseName = !formNameSpecified(base.id) &&
                 !(numSameStatsForms > 1) && !showDuplicateForms;
 
-            Utf8::Print(PokemonToString(base, pkm, format, sortCriteria, useBaseName));
+            Utf8::Print(PokemonToString(base, pokemon, format, sortCriteria, useBaseName));
         }
 
         ret = EXIT_SUCCESS;
