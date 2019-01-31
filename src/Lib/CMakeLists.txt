@@ -6,7 +6,10 @@ if (BUILD_SHARED_LIBS)
 endif()
 
 add_library(PoGoCmp ${headers} ${sources})
-target_link_libraries(PoGoCmp --coverage)
+target_link_libraries(PoGoCmp)
+if (ENABLE_COVERAGE)
+    target_link_libraries(PoGoCmp)
+endif()
 
 install(FILES ${headers} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 install(TARGETS PoGoCmp
