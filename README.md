@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Stinkfist0/PoGoCmp.svg?branch=master)](https://travis-ci.org/Stinkfist0/PoGoCmp)
 [![Build status](https://ci.appveyor.com/api/projects/status/0w5ik8sbxfp95soy/branch/master?svg=true)](https://ci.appveyor.com/project/Stinkfist0/pogocmp/branch/master)
+[![codecov](https://codecov.io/gh/Stinkfist0/PoGoCmp/branch/master/graph/badge.svg)](https://codecov.io/gh/Stinkfist0/PoGoCmp)
 
 Project description TBA.
 

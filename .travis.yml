@@ -10,6 +10,7 @@ addons:
       - g++-8
 
 script:
-  - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake . 
+  - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake . -DENABLE_COVERAGE=1
   - cmake --build . -- -j2
   - ctest --verbose -j2
+  - bash <(curl -s https://codecov.io/bash) -x /usr/bin/gcov-8

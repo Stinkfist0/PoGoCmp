@@ -7,6 +7,12 @@ option(BUILD_SHARED_LIBS "Build PoGoCmp as a shared lib." OFF)
 option(BUILD_CLI "Build the CLI application" ON)
 option(BUILD_DBGEN "Build the database code generator" ON)
 option(BUILD_TESTS "Build the tests" ON)
+if(CMAKE_COMPILER_IS_GNUCC)
+    option(ENABLE_COVERAGE "Enable coverage reporting for gcc/clang" OFF)
+    if (ENABLE_COVERAGE)
+        add_compile_options(--coverage -O0)
+    endif()
+endif()
 
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/installed"
