@@ -357,27 +357,24 @@ int main(int argc, char **argv)
     }
     else if (opts.HasOption("typeinfo"))
     {
-        auto te = opts.OptionValue("typeinfo");
-        if (te.empty())
-            LogErrorAndExit("Arguments missing for typeinfo. ");
+        auto typeinfo = opts.OptionValue("typeinfo");
+        if (typeinfo.empty())
+            LogErrorAndExit("Arguments missing for typeinfo.");
 
         const auto allTypes = []
         {
-            std::vector<std::pair<int, int>> types;
+            std::vector<std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>> types;
             for (int i = 0; i < (int)PoGoCmp::PokemonType::NUM_TYPES; ++i)
-                types.emplace_back(/*(PoGoCmp::PokemonType)*/i, -1);
+                types.emplace_back((PoGoCmp::PokemonType)i, PoGoCmp::PokemonType::NONE);
             return types;
         };
 
-        auto types = Split(te, ',', StringUtils::RemoveEmptyEntries);
-        if (types.size() == 0)
-             LogErrorAndExit("At least single type or Pokémon required as an input.");
-
         // types as indices to TypeEffectiveness table
-        std::vector<std::pair<int, int>> attackTypes, defenderTypes;
+        std::vector<std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>> attackTypes, defenderTypes;
 
+        const auto types = Split(typeinfo, ',', StringUtils::RemoveEmptyEntries);
         const auto cmd = types[0];
-        if (cmd == "atk" || cmd == "def") // typeinfo <def|def>,<type1>[,type2]
+        if (cmd == "atk" || cmd == "def") // typeinfo <atk|def>,<type1>[,type2]
         {
             if (types.size() < 2)
                 LogErrorAndExit("At least one type required as an argument.");
@@ -397,45 +394,57 @@ int main(int argc, char **argv)
             if (cmd == "def")
             {
                 attackTypes = allTypes();
-                defenderTypes.emplace_back((int)type1, (int)type2);
+                defenderTypes.emplace_back(type1, type2);
             }
             else
             {
-                attackTypes.emplace_back((int)type1, (int)type2);
+                attackTypes.emplace_back(type1, type2);
                 defenderTypes = allTypes();
             }
         }
         else // typeinfo <pokemon>
         {
-            const auto id = PoGoCmp::PokemonNameToId(cmd);
+            const auto id = PoGoCmp::PokemonNameToId(StringUtils::TrimCopy(cmd));
             auto pkm = PoGoCmp::PokemonByIdName(id);
             if (pkm.number == 0)
-                LogErrorAndExit(types[0] + Utf8::FromWString(L" is not a valid argument nor a Pokémon."));
+                LogErrorAndExit("'" + types[0] + "'"+ Utf8::FromWString(L" is not a valid argument nor a Pokémon."));
 
             attackTypes = allTypes();
 
-            defenderTypes.emplace_back((int)pkm.type, (int)pkm.type2);
+            defenderTypes.emplace_back(pkm.type, pkm.type2);
         }
 
         assert(!attackTypes.empty());
         assert(!defenderTypes.empty());
+
+        const auto computeEffectiveness = [](PoGoCmp::PokemonType at, PoGoCmp::PokemonType dt1, PoGoCmp::PokemonType dt2)
+        {
+            auto scalar = PoGoCmp::TypeEffectiveness[(int)at][(int)dt1];
+            if (dt2 != PoGoCmp::PokemonType::NONE)
+                scalar *= PoGoCmp::TypeEffectiveness[(int)at][(int)dt2];
+            return scalar;
+        };
 
         //! @todo sort the results, NVE first, neutral second, SE last
         for (const auto& at : attackTypes)
         {
             for (const auto& dt : defenderTypes)
             {
-                const auto attack = (PoGoCmp::PokemonType)at.first;
-                const auto type1 = (PoGoCmp::PokemonType)dt.first;
-                const auto type2 = (PoGoCmp::PokemonType)dt.second;
-                auto scalar = PoGoCmp::TypeEffectiveness[at.first][dt.first];
-                if (type2 != PoGoCmp::PokemonType::NONE)
-                    scalar *= PoGoCmp::TypeEffectiveness[at.first][dt.second];
+                std::cout << SnakeCaseToTitleCase(PokemonTypeToString(at.first));
+                if (at.second != PoGoCmp::PokemonType::NONE)
+                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(at.second));
 
-                std::cout << SnakeCaseToTitleCase(PokemonTypeToString(attack)) << "-"
-                    << SnakeCaseToTitleCase(PokemonTypeToString(type1));
-                if (type2 != PoGoCmp::PokemonType::NONE)
-                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(type2));
+                std::cout << "-" << SnakeCaseToTitleCase(PokemonTypeToString(dt.first));
+                if (dt.second != PoGoCmp::PokemonType::NONE)
+                    std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(dt.second));
+
+                auto scalar = computeEffectiveness(at.first, dt.first, dt.second);
+
+                if (at.second != PoGoCmp::PokemonType::NONE)
+                {
+                    scalar = std::max(scalar, computeEffectiveness(at.second, dt.first, dt.second));
+                }
+
                 std::cout << ": " << FloatToString(scalar) << "\n";
             }
         }
