@@ -662,10 +662,10 @@ struct Pokemon
 const std::array<Pokemon, 6> RaidLevels{{
     { 21, 15, 15, 600 },
     { 25, 15, 15, 1800 },
-    { 30, 15, 15, 3000 },
-    { 40, 15, 15, 7500 },
-    { 40, 15, 15, 12500 },
-    { 40, 15, 15, 18750 } // level 5 but with more health (e.g. Mewtwo in regular raids)
+    { 30, 15, 15, 3600 },
+    { 40, 15, 15, 9000 },
+    { 40, 15, 15, 15000 },
+    { 40, 15, 15, 22500 } // level 5 but with more health (e.g. Mewtwo in regular raids)
 }};
 
 //! Case-insensitive.
