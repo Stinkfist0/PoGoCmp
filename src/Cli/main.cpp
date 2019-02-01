@@ -178,9 +178,7 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%T"}, type);
     fmt = std::regex_replace(fmt, std::regex{"%t"}, type2);
     fmt = std::regex_replace(fmt, std::regex{"%o"}, FloatToString(PropertyValueByName(base, sortCriteria)));
-    int cp = base.baseSta >= PoGoCmp::RaidLevels.begin()->sta // L1 raid boss should have easily more HP than any regular Pokémon
-        ? ComputeRaidBossCp(base, pkm)
-        : ComputeCp(base, pkm);
+    int cp = pkm.sta > 15 ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
     fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
