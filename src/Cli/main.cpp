@@ -173,12 +173,14 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%bd"}, std::to_string(base.baseDef));
     fmt = std::regex_replace(fmt, std::regex{"%d"}, std::to_string(ComputeStat(base.baseDef, pkm.def, pkm.level)));
     fmt = std::regex_replace(fmt, std::regex{"%bs"}, std::to_string(base.baseSta));
-    fmt = std::regex_replace(fmt, std::regex{"%s"}, std::to_string(ComputeStat(base.baseSta, pkm.sta, pkm.level)));
+    const bool isRaidBoss = pkm.sta > 15;
+    const auto sta = isRaidBoss ? pkm.sta : ComputeStat(base.baseSta, pkm.sta, pkm.level);
+    fmt = std::regex_replace(fmt, std::regex{"%s"}, std::to_string(sta));
     fmt = std::regex_replace(fmt, std::regex{"%Tt"}, types);
     fmt = std::regex_replace(fmt, std::regex{"%T"}, type);
     fmt = std::regex_replace(fmt, std::regex{"%t"}, type2);
     fmt = std::regex_replace(fmt, std::regex{"%o"}, FloatToString(PropertyValueByName(base, sortCriteria)));
-    int cp = pkm.sta > 15 ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
+    const auto cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
     fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
