@@ -733,7 +733,7 @@ int main(int argc, char **argv)
             const auto filterCmp = MakeComparator(compOpType);
             std::copy_if(
                 rangeResult.begin(), rangeResult.end(), std::back_inserter(results),
-                [&](const auto &pokemon) { return filterCmp(PropertyValueByName(pokemon, sortCriteria), compVal); }
+                [&](const auto &pkm) { return filterCmp(PropertyValueByName(pkm, sortCriteria), compVal); }
             );
         }
 

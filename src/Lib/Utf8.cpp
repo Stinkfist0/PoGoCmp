@@ -100,7 +100,7 @@ void Print(const String& str, OutputStream stream)
         if (handle == INVALID_HANDLE_VALUE)
             return;
         DWORD charsWritten;
-        WriteConsole(handle, wstr.c_str(), wstr.size(), &charsWritten, nullptr);
+        WriteConsole(handle, wstr.c_str(), (DWORD)wstr.size(), &charsWritten, nullptr);
     }
     else // Output redirected
     {
