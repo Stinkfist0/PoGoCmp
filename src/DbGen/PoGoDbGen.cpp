@@ -735,10 +735,8 @@ static inline bool IsValidIdName(const std::string& id)
 static const std::string MrMimeName{ "Mr. Mime" };
 static const std::string FarfetchdName{ "Farfetch'd" };
 static const std::string HoOhName{ "Ho-Oh" };
-// Cannot use the actual ♀ & ♂ symbols in the literals as those would get corrupted
-// on MSVC unless the file would be saved as UTF-16 LE BOM which I don't want to do.
-static const Utf8::String NidoranFemaleName{ u8"Nidoran\u2640" };
-static const Utf8::String NidoranMaleName{ u8"Nidoran\u2642" };
+static const Utf8::String NidoranFemaleName{ u8"Nidoran♀" }; // u8"Nidoran\u2640"
+static const Utf8::String NidoranMaleName{ u8"Nidoran♂" }; // u8"Nidoran\u2642"
 static const std::string UnownExclamationName{ "Unown !" };
 static const std::string UnownQuestionName{ "Unown ?" };
 // N.B. "Porygon2" and "Porygon Z" inconsitency

@@ -17,13 +17,9 @@ if (PokemonIdToName((a)) != (b)) \
 int main(/*int argc, char **argv*/)
 {
     using namespace PoGoCmp;
-    // Would be nice to use e.g. u8"Nidoran♀" here but unfortunately not possible currently
-    // on MSVC without changing to source file encoding to UTF-16 LE BOM.
-    auto nidoranFemale = PoGoCmp::NidoranFemaleName;
-    nidoranFemale[0] = std::tolower(nidoranFemale[0], {});
-    AssertNameToId(nidoranFemale, "NIDORAN_FEMALE");
+    AssertNameToId(u8"Nidoran♀", "NIDORAN_FEMALE");
     AssertNameToId("Nidoran Female", "NIDORAN_FEMALE");
-    AssertNameToId(PoGoCmp::NidoranMaleName, "NIDORAN_MALE");
+    AssertNameToId(u8"Nidoran♂", "NIDORAN_MALE");
     AssertNameToId("Nidoran Male", "NIDORAN_MALE");
     AssertNameToId("Farfetch'd", "FARFETCHD");
     AssertNameToId("Mr. Mime", "MR_MIME");

@@ -23,10 +23,8 @@ message(STATUS "CMAKE_INSTALL_PREFIX set to ${CMAKE_INSTALL_PREFIX}")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (MSVC)
-    add_compile_options(/W4 /std:c++17)
-    if (MSVC_VERSION GREATER 1900) # VS > 2015
-        add_definitions(/permissive-)
-    endif()
+    # With MSVC, VS 2017 or newer assumed
+    add_compile_options(/W4 /std:c++17 /utf-8 /permissive-)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -std=c++17 -fvisibility=hidden -Wshadow)
 endif()
