@@ -97,8 +97,7 @@ int ComputeStat(int base, int iv, float level)
 }
 
 //! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
-//! \todo Weird that raid bosses would have different formulat without CPM.
-//! Investigate if ComputeCp() could made work somehow.
+//! @note For some reasons raid bosses have have different arbitrary formula without CPM.
 int ComputeRaidBossCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
 {
     auto atk = base.baseAtk + pkm.atk;
@@ -168,6 +167,8 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%nu"}, std::to_string(base.number));
     auto id = useBaseName ? PoGoCmp::FormIdToBaseId(base.id) : base.id;
     fmt = std::regex_replace(fmt, std::regex{"%na"}, PoGoCmp::PokemonIdToName(id));
+    //! @todo Raid bosses might have slightly different stat computation.
+    //! When comparing my stats e.g. to Pokebattler's stats, my attack and defence are off by one.
     fmt = std::regex_replace(fmt, std::regex{"%ba"}, std::to_string(base.baseAtk));
     fmt = std::regex_replace(fmt, std::regex{"%a"}, std::to_string(ComputeStat(base.baseAtk, pkm.atk, pkm.level)));
     fmt = std::regex_replace(fmt, std::regex{"%bd"}, std::to_string(base.baseDef));
