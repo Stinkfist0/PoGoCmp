@@ -183,6 +183,15 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%o"}, FloatToString(PropertyValueByName(base, sortCriteria)));
     const auto cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
+
+    auto moves = base.fastMoves;
+    std::transform(moves.begin(), moves.end(), moves.begin(), [](auto m) { SnakeCaseToTitleCase(m); return m; });
+    fmt = std::regex_replace(fmt, std::regex{"%fm"}, "[" + StringUtils::Join(moves, ", ") + "]");
+
+    moves = base.chargeMoves;
+    std::transform(moves.begin(), moves.end(), moves.begin(), [](auto m) { SnakeCaseToTitleCase(m); return m; });
+    fmt = std::regex_replace(fmt, std::regex{"%cm"}, "[" + StringUtils::Join(moves, ", ") + "]");
+
     fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
     fmt = std::regex_replace(fmt, std::regex{"%g"}, FormatGender(base.malePercent, base.femalePercent));
@@ -210,8 +219,8 @@ const std::vector<ProgramOption> programsOptions{
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
         "%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %b (buddy distance, km), "
-        "(%g gender ratio by male percentage) \\n (new line), \\t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm (charge moves) "
+        "%b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab)"
         "Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {"", "--ivs",
@@ -684,9 +693,8 @@ int main(int argc, char **argv)
         std::string sortCriteria = opts.OptionValue("sort");
         std::string compOpType, compValStr;
         float compVal;
-        auto opBegin = sortCriteria.find_first_of("<>=");
-        auto opEnd = sortCriteria.find_last_of("<>=");
-        if (opBegin != std::string::npos && opEnd != std::string::npos)
+        if (auto opBegin = sortCriteria.find_first_of("<>="), opEnd = sortCriteria.find_last_of("<>=");
+            opBegin != std::string::npos && opEnd != std::string::npos)
         {
             compOpType = sortCriteria.substr(opBegin, opEnd - opBegin + 1);
             compValStr = sortCriteria.substr(opEnd + 1, sortCriteria.length() - opEnd);

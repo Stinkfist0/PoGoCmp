@@ -46,6 +46,18 @@ std::string DateTimeOffsetString(std::time_t timestampS)
     return ss.str();
 }
 
+
+//! @todo generalize into StringUtils::RTrim(std::string)?
+void ReplaceAtEnd(std::string& str, const std::string& from, const std::string& to)
+{
+    auto pos = str.rfind(from);
+    if (pos != std::string::npos && pos + from.size() == str.size())
+        str.replace(pos, from.size(), to);
+}
+
+//! @todo
+//! - rename to PoGoDataGen
+//! - separate functions (PoGoApi.h) and data (PoGoData.h)
 int main(int argc, char **argv)
 {
     auto args = Utf8::ParseArguments(argc, argv);
@@ -88,6 +100,8 @@ int main(int argc, char **argv)
         uint8_t buddyDistance;
         float malePercent;
         float femalePercent;
+        std::vector<std::string> fastMoves;
+        std::vector<std::string> chargeMoves;
     };
 
     using PokemonTable = std::multimap<uint16_t, PokemonSpecieTemp>;
@@ -127,6 +141,42 @@ int main(int argc, char **argv)
     //float typeEffectiveness[numTypes][numTypes]{};
     std::array<std::array<float, numTypes>, numTypes> typeEffectiveness{{}};
 
+    struct Move
+    {
+        std::string id;
+        PokemonType type;
+        float combatPower;
+        float pvpPower;
+        float combatDuration;
+        float pvpDuration; // applicable only for PvP fast moves, chage moves have a fixed duration
+        float combatEnergy;
+        float pvpEnergy;
+        float damageWindowStartMs; // applies only for combat.
+        float damageWindowEndMs; // applies only for combat.
+
+        bool IsFastMove() const { return combatEnergy > 0; }
+        bool IsChargeMove() const { return !IsFastMove(); }
+    };
+
+    auto writeMove = [&](const Move& m)
+    {
+        output
+            << "{"
+            << std::quoted(m.id) << ", "
+            << "PokemonType::" << PokemonTypeToString(m.type) << ", "
+            << m.combatPower << ", "
+            << m.pvpPower << ", "
+            << m.combatDuration << ", "
+            << m.pvpDuration << ", "
+            << m.combatEnergy << ", "
+            << m.pvpEnergy << ", "
+            << m.damageWindowStartMs << ", "
+            << m.damageWindowEndMs
+            << "}";
+    };
+
+    std::map<std::string, Move> moves;
+
     using namespace nlohmann;
     try
     {
@@ -137,6 +187,9 @@ int main(int argc, char **argv)
         auto timestampS = (time_t)std::stoll(timestampMs.c_str()) / 1000;
         dateTimeOffset = DateTimeOffsetString(timestampS);
         std::cout << "Input file's timestamp " << dateTimeOffset << "\n";
+
+        const std::regex combatMovePattern{"COMBAT_V(\\d{4})_MOVE_(\\w+)"}; // e.g. "COMBAT_V0235_MOVE_CONFUSION_FAST"
+        const std::regex movePattern{"V(\\d{4})_MOVE_(\\w+)"}; // e.g. "V0235_MOVE_CONFUSION_FAST"
 
         const std::regex formPattern{"FORMS_V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "FORMS_V0122_POKEMON_MR_MIME"
         const std::regex spawnIdPattern{"SPAWN_V(\\d{4})_POKEMON_(\\w+)"}; // e.g. "SPAWN_V0122_POKEMON_MR_MIME"
@@ -186,25 +239,39 @@ int main(int argc, char **argv)
 
                 pokemonTypes.insert(matches[1]);
             }
+            else if (std::regex_match(templateId, matches, combatMovePattern))
+            {
+                Move move{};
+                const auto& combatMove = itemTemplate["combatMove"];
+                move.id = combatMove["uniqueId"];
+                const std::string type = combatMove["type"];
+                std::regex_match(type, matches, typePattern);
+                move.type = StringToPokemonType(matches[1].str().c_str());
+                assert(move.type != PokemonType::NONE);
+                if (auto it = combatMove.find("power"); it != combatMove.end()) // moves with 0 (e.g. Splash and Yawn) power have this missing
+                    move.pvpPower = *it;
+                if (auto it = combatMove.find("durationTurns"); it != combatMove.end()) // applies only for fast moves
+                    move.pvpDuration = *it;
+                if (auto it = combatMove.find("energyDelta"); it != combatMove.end()) // e.g. Transform has no energy
+                    move.pvpEnergy = *it;
+                moves[move.id] = move;
+            }
+            else if (std::regex_match(templateId, matches, movePattern))
+            {
+                const auto& moveSettings = itemTemplate["moveSettings"];
+                const std::string id = moveSettings["movementId"];
+                auto& move = moves[id];
+                ReplaceAtEnd(move.id, "_FAST", "");
+                if (auto it = moveSettings.find("power"); it != moveSettings.end())
+                    move.combatPower = *it;
+                if (auto it = moveSettings.find("energyDelta"); it != moveSettings.end())
+                    move.combatEnergy = *it;
+                move.combatDuration = moveSettings["durationMs"];
+                move.damageWindowStartMs = moveSettings["damageWindowStartMs"];
+                move.damageWindowEndMs = moveSettings["damageWindowEndMs"];
+            }
             else if (std::regex_match(templateId, matches, formPattern))
             {
-                //"templateId": "FORMS_V0351_POKEMON_CASTFORM",
-                //"formSettings": {
-                //  "pokemon": "CASTFORM",
-                //  "forms": [{
-                //    "form": "CASTFORM_NORMAL",
-                //    "assetBundleValue": 11
-                //  }, {
-                //    "form": "CASTFORM_SUNNY",
-                //    "assetBundleValue": 12
-                //  }, {
-                //    "form": "CASTFORM_RAINY",
-                //    "assetBundleValue": 13
-                //  }, {
-                //    "form": "CASTFORM_SNOWY",
-                //    "assetBundleValue": 14
-                //  }]
-
                 // Form information comes first. Initialize the specie/form data in pokemonTable.
                 PokemonSpecieTemp pkm{};
                 pkm.type = pkm.type2 = PokemonType::NONE;
@@ -298,6 +365,19 @@ int main(int argc, char **argv)
                         {
                             assert(pkm.type2 == PokemonType::NONE);
                         }
+
+                        //"quickMoves": ["EMBER_FAST", "SCRATCH_FAST"],
+                        std::vector<std::string> quickMoves = settings["quickMoves"];
+                        std::transform(
+                            quickMoves.begin(), quickMoves.end(), quickMoves.begin(),
+                            [](std::string id) { ReplaceAtEnd(id, "_FAST", ""); return id; }
+                        );
+                        pkm.fastMoves.assign(quickMoves.begin(), quickMoves.end());
+
+                        //"cinematicMoves": ["FLAME_CHARGE", "FLAME_BURST", "FLAMETHROWER"],
+                        const std::vector<std::string> cinematicMoves = settings["cinematicMoves"];
+                        pkm.chargeMoves.assign(cinematicMoves.begin(), cinematicMoves.end());
+
                         // Rarity
                         it = settings.find("rarity"); // exists only for legendary and mythic Pokemon
                         //! @todo most of the baby Pokemon can be identified using buddySize but not all
@@ -506,14 +586,15 @@ struct PokemonSpecie
     uint16_t baseSta;
     //! Pokémon's ID/specie name, uppercase with underscores.
     //! Use PokemonIdToName() to translate this into a proper name.
-    //! The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
-    //! but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
-    //! https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
     std::string id;
     //! Primary type.
     PokemonType type;
     //! Secondary type, if applicable.
     PokemonType type2;
+    //! Fast move IDs.
+    std::vector<std::string> fastMoves;
+    //! Charge move IDs.
+    std::vector<std::string> chargeMoves;
     //! Rarity type.
     PokemonRarity rarity;
     //! How much tracked buddy walking is required for a candy, in kilometers.
@@ -551,11 +632,20 @@ struct PokemonSpecie
 
     auto writePokemon = [&](const PokemonSpecieTemp& pkm)
     {
-        output << "{ " << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
+        const auto quote = [](const std::string& m) { return "\"" + m + "\""; };
+        auto fm = pkm.fastMoves;
+        std::transform(fm.begin(), fm.end(), fm.begin(), quote);
+        auto cm = pkm.chargeMoves;
+        std::transform(cm.begin(), cm.end(), cm.begin(), quote);
+
+        output << "{"
+            << pkm.number << ", " << pkm.baseAtk << ", " << pkm.baseDef << ", " << pkm.baseSta
             << ", " << std::quoted(!pkm.formId.empty() ? pkm.formId : pkm.id) << ", PokemonType::"
-            << PokemonTypeToString(pkm.type) << ", PokemonType::" << PokemonTypeToString(pkm.type2)
+            << PokemonTypeToString(pkm.type) << ", PokemonType::" << PokemonTypeToString(pkm.type2) << ", "
+            << "{" << StringUtils::Join(fm, ", ") << "}, " << "{" << StringUtils::Join(cm, ", ") << "}"
             << ", PokemonRarity::" << PokemonRarityToString(pkm.rarity) << ", " << (int)pkm.buddyDistance
-            << ", " << pkm.malePercent << ", " << pkm.femalePercent << " }";
+            << ", " << pkm.malePercent << ", " << pkm.femalePercent
+            << "}";
     };
 
     auto writePokemonMapEntry = [&](const PokemonTable::key_type& key, const PokemonSpecieTemp& pkm)
@@ -591,7 +681,39 @@ struct PokemonSpecie
         //output << indent;
         writeForms(pokemonTable.equal_range(it->first));
     }
-    output << "};\n\n";
+    output << "};\n";
+
+    output <<
+R"(
+//! Currently the game has two different combat mechanics, one for gyms/raids ("combat") and one for PvP.
+//! This structure holds the information for both mechanics.
+struct Move
+{
+    std::string id;
+    PokemonType type;
+    float combatPower;
+    float pvpPower;
+    float combatDuration;
+    float pvpDuration; // applicable only for PvP fast moves, chage moves have a fixed duration
+    float combatEnergy;
+    float pvpEnergy;
+    float damageWindowStartMs; // applies only for combat.
+    float damageWindowEndMs; // applies only for combat.
+
+    bool IsFastMove() const { return combatEnergy > 0; }
+    bool IsChargeMove() const { return !IsFastMove(); }
+};
+
+)";
+
+    output << "static const std::array<Move, " << moves.size() << "> Moves{{\n";
+    for (auto&[name, move] : moves)
+    {
+        output << indent;
+        writeMove(move);
+        output << ",\n";
+    }
+    output << "}};\n\n";
 
     output <<
 R"(//! Case-insensitive string comparison.
@@ -810,6 +932,7 @@ static inline std::string PokemonNameToId(Utf8::String name)
 }
 
 //! Returns proper name corresponding the Pokémon's ID name.
+//! https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
 //! There are only a handful of Pokémon with special character's in their names:
 //! - Mr. Mime -> MR_MIME
 //! - Farfetch'd -> FARFETCHD
