@@ -165,9 +165,9 @@ Utf8::String PokemonToString(
     bool useBaseName)
 {
     using namespace StringUtils;
-    const auto type = SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type));
+    const auto type = SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(base.type));
     const auto type2 = base.type2 == PoGoCmp::PokemonType::NONE
-        ? "" : SnakeCaseToTitleCase(PoGoCmp::PokemonTypeToString(base.type2));
+        ? "" : SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(base.type2));
     const auto types = Concat(type, (!type2.empty() ? "/" : ""), type2);
     fmt = std::regex_replace(fmt, std::regex{"%nu"}, std::to_string(base.number));
     auto id = useBaseName ? PoGoCmp::FormIdToBaseId(base.id) : base.id;
@@ -224,6 +224,11 @@ const std::vector<ProgramOption> programsOptions{
         "-it", "--includeType",
         L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, rock, bug, ghost, steel, "
         "fire, water, grass, electric, psychic, ice, dragon, dark, or fairy. Multiple options supported."
+    },
+    {
+        "-it", "--includeMove",
+        L"Specify Pokémon to be included by specific moves(s). Use 'info moves' command to see the available moves. "
+        "Multiple options supported."
     },
     {
         "-r", "--results",
@@ -534,12 +539,12 @@ int main(int argc, char **argv)
 
         for (const auto& te: results)
         {
-            std::cout << SnakeCaseToTitleCase(PokemonTypeToString(te.at1));
+            std::cout << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.at1));
             if (te.at2 != PoGoCmp::PokemonType::NONE)
-                std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(te.at2));
-            std::cout << " vs. " << SnakeCaseToTitleCase(PokemonTypeToString(te.dt1));
+                std::cout << "/" << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.at2));
+            std::cout << " vs. " << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.dt1));
             if (te.dt2 != PoGoCmp::PokemonType::NONE)
-                std::cout << "/" << SnakeCaseToTitleCase(PokemonTypeToString(te.dt2));
+                std::cout << "/" << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.dt2));
             std::cout << ": " << FloatToString(te.scalar) << "\n";
         }
 
@@ -882,10 +887,9 @@ int main(int argc, char **argv)
             results.end()
         );
 
-        // --include-types
+        // --includeType
         std::vector<PoGoCmp::PokemonType> types;
-        auto includeTypes = opts.OptionValues("-it", "--includeType");
-        for (const auto& typeStr : includeTypes)
+        for (const auto& typeStr : opts.OptionValues("-it", "--includeType"))
         {
             auto type = PoGoCmp::StringToPokemonType(typeStr.c_str());
             if (type == PoGoCmp::PokemonType::NONE)

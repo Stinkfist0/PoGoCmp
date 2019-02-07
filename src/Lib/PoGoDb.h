@@ -1367,7 +1367,7 @@ static inline Utf8::String PokemonIdToName(const std::string& id)
     else if (CompareI(id.c_str(), "SPINDA_07") == 0) return "Spinda 8";
     else if (CompareI(id.c_str(), "PORYGON_Z") == 0) return PorygonZName;
     else if (CompareI(id.c_str(), "MIME_JR") == 0) return MimeJrName;
-    else return StringUtils::SnakeCaseToTitleCase(id);
+    else return StringUtils::SnakeCaseToTitleCaseCopy(id);
 }
 
 ///! If the ID is an ID of a form, the base ID/name of the form is returned.

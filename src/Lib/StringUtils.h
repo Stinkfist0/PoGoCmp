@@ -8,6 +8,7 @@
 #include <cstring>
 #include <locale>
 #include <sstream>
+#include <algorithm>
 
 namespace StringUtils
 {
@@ -39,27 +40,44 @@ static inline std::string Join(const std::vector<std::string> &strings, const st
     return ret;
 }
 
-//! Converts snake_case or SCREAMING_NAKE_CASE
+//! Converts "snake_case" or "SCREAMING_NAKE_CASE" to "Title Case", C locale.
 static inline void SnakeCaseToTitleCase(std::string &str)
 {
     if (str.empty()) return;
     const auto& cLocale = std::locale::classic();
     size_t i = 0;
     str[i] = std::toupper(str[i], cLocale);
-    for (++i; i < str.length(); ++i)
+    const auto size = str.size();
+    for (++i; i < size; ++i)
     {
         if (str[i] == '_') str[i] = ' ';
         else if (str[i - 1] == ' ' || str[i - 1] == '-') str[i] = std::toupper(str[i], cLocale);
         else str[i] = std::tolower(str[i], cLocale);
     }
 }
-
-static inline std::string SnakeCaseToTitleCase(const std::string &str)
+[[nodiscard]] static inline std::string SnakeCaseToTitleCaseCopy(std::string str)
 {
-    if (str.empty()) return str;
-    auto copy = str;
-    SnakeCaseToTitleCase(copy);
-    return copy;
+    SnakeCaseToTitleCase(str);
+    return str;
+}
+
+//! All non-alphanumeric characters are converted to underscores, C locale.
+static inline void ToScreamingSnakeCase(std::string& str)
+{
+    const auto& cLocale = std::locale::classic();
+    std::transform(
+        str.begin(), str.end(), str.begin(),
+        [&cLocale](auto c)
+        {
+            if (!std::isalnum(c, cLocale)) return '_';
+            else return std::toupper(c, cLocale);
+        }
+    );
+}
+[[nodiscard]] static inline std::string ToScreamingSnakeCaseCopy(std::string str)
+{
+    ToScreamingSnakeCase(str);
+    return str;
 }
 
 static inline bool IsNumber(const std::string& str)
