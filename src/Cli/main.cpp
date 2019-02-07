@@ -212,7 +212,7 @@ const std::vector<ProgramOption> programsOptions{
         "For Pokémon's name, either the base name (e.g. 'Rattata') of form name (e.g. 'Rattata Alola') can be used. In case of "
         "a base name, all forms of the Pokémon are included in the results. In case of a form name, only the specific form is "
         "included in the results. A form name can be used only when specifying a single-Pokémon range. Multiple options supported."},
-    { "-it", "--include-type", L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, "
+    { "-it", "--includeType", L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, "
         "rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, or fairy. Multiple options supported."},
     { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
     { "-f", "--format",
@@ -816,7 +816,7 @@ int main(int argc, char **argv)
 
         // --include-types
         std::vector<PoGoCmp::PokemonType> types;
-        auto includeTypes = opts.OptionValues("-it", "--include-types");
+        auto includeTypes = opts.OptionValues("-it", "--includeType");
         for (const auto& typeStr : includeTypes)
         {
             auto type = PoGoCmp::StringToPokemonType(typeStr.c_str());
