@@ -39,6 +39,11 @@ void Log(const Utf8::String& msg)
     Utf8::PrintLine(msg, Utf8::OutputStream::Out);
 }
 
+void Log(const std::wstring& msg)
+{
+    Utf8::PrintLine(Utf8::FromWString(msg), Utf8::OutputStream::Out);
+}
+
 //! @todo Move CP functions to the PoGoCmp API
 float GetCpm(float level)
 {
@@ -255,7 +260,10 @@ const std::vector<ProgramOption> programsOptions{
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
         L"Only single name/ID/number as an argument supported."
     },
-    { "info", "", L"Print information about the available data set." },
+    {
+        "info", "",
+        L"Print information about the available data set. Supported arguments: '' (print general info), "
+        "'moves' (list available moves)."},
     { "typeinfo", "",
         L"Print typing information for the given type(s) or Pokémon."
         "'typeinfo atk,<type1>[,type2]' prints attack(-combination)'s effectiveness against all types. "
@@ -360,10 +368,46 @@ int main(int argc, char **argv)
     //! @todo Use info also to list type-effectiveness, attacks, etc.
     if (opts.HasOption("info"))
     {
-        //! @todo
-        //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
-        Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
-        ret = EXIT_SUCCESS;
+        if (auto info = opts.OptionValues("info"); std::find(info.begin(), info.end(), "moves") != info.end())
+        {
+            Log(std::to_string(PoGoCmp::Moves.size()) + " moves available:");
+            auto isMoveInUse = [](const std::string& id)
+            {
+                return std::any_of(
+                    PoGoCmp::PokemonByNumber.begin(), PoGoCmp::PokemonByNumber.end(),
+                    [&id](const auto& kvp)
+                    {
+                        return
+                            std::any_of(kvp.second.fastMoves.begin(), kvp.second.fastMoves.end(),
+                                        [&id](const auto& fmId) { return fmId == id; }) ||
+                            std::any_of(kvp.second.chargeMoves.begin(), kvp.second.chargeMoves.end(),
+                                        [&id](const auto& cmId) { return cmId == id; });
+                    }
+                );
+            };
+
+            for (const auto& m : PoGoCmp::Moves)
+            {
+                std::cout << m.id;
+                if (!isMoveInUse(m.id)) Utf8::Print("*");
+                Utf8::PrintLine("");
+            }
+            Log(L"*) Move currently available in any Pokémon's moveset.");
+
+            ret = EXIT_SUCCESS;
+        }
+        else if (info.empty())
+        {
+            //! @todo
+            //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
+            Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
+
+            ret = EXIT_SUCCESS;
+        }
+        else
+        {
+            LogErrorAndExit("Unknown argument for 'info' command.");
+        }
     }
     else if (opts.HasOption("typeinfo"))
     {
