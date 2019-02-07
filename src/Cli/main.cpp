@@ -212,59 +212,83 @@ const std::vector<ProgramOption> programsOptions{
     //{ "", "--verbose", L"Verbose log prints."},
     //{ "-a", "--ascending", L"Sort the results in ascending order (default)." },
     { "-d", "--descending", L"Sort the results in descending order (ascending by default)." },
-    { "-i", "--include", L"Specify Pokémon or range of Pokémon to be included: "
-        "'all' (default), 'gen<X>' (1/2/3/4), 'unknown', '<X>[,Y]' (inclusive Pokedex range, both numbers and names supported. "
-        "For Pokémon's name, either the base name (e.g. 'Rattata') of form name (e.g. 'Rattata Alola') can be used. In case of "
-        "a base name, all forms of the Pokémon are included in the results. In case of a form name, only the specific form is "
-        "included in the results. A form name can be used only when specifying a single-Pokémon range. Multiple options supported."},
-    { "-it", "--includeType", L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, "
-        "rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, or fairy. Multiple options supported."},
-    { "-r", "--results", L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')." },
-    { "-f", "--format",
+    {
+        "-i", "--include",
+        L"Specify Pokémon or range of Pokémon to be included: 'all' (default), 'gen<X>' (1/2/3/4), 'unknown', '<X>[,Y]' "
+        "(inclusive Pokedex range, both numbers and names supported. For Pokémon's name, either the base name (e.g. 'Rattata') "
+        "of form name (e.g. 'Rattata Alola') can be used. In case of a base name, all forms of the Pokémon are included in the "
+        "results. In case of a form name, only the specific form is included in the results. A form name can be used only when "
+        "specifying a single-Pokémon range. Multiple options supported."
+    },
+    {
+        "-it", "--includeType",
+        L"Specify Pokémon to be included by type(s): normal, fighting, flying, poison, ground, rock, bug, ghost, steel, "
+        "fire, water, grass, electric, psychic, ice, dragon, dark, or fairy. Multiple options supported."
+    },
+    {
+        "-r", "--results",
+        L"Show only first N entries of the results, e.g. '-r 5' (negative number means 'show all')."
+    },
+    {
+        "-f", "--format",
         L"Specify format for the output,'" + Utf8::ToWString(defaultFormat) + L"' by default: "
         "%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
         "%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
-        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm (charge moves) "
-        "%b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab)"
+        "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
+        "(charge moves) %b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab). "
         "Max. level and perfect IVs by default. See also --ivs and --level."
     },
-    {"", "--ivs",
+    {
+        "", "--ivs",
         L"Specify IVs of the Pokémon for the CP calculation: <attack><defense><stamina>, hexadecimal 0-F. "
-        L"E.g. 'A9F', perfect IVs 'FFF' by default."},
-    {"", "--level",
-        L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"},
-    {"", "--raidLevel",
+        "E.g. 'A9F', perfect IVs 'FFF' by default."
+    },
+    {
+        "", "--level",
+        L"Specify level of the Pokémon for the CP calculation, [1," + std::to_wstring(PoGoCmp::PlayerLevel.cpMultiplier.size()) + L"]"
+    },
+    {
+        "", "--raidLevel",
         L"Specify raid level for the Pokémon's CP calculation to simulate if the Pokémon would be a raid boss. "
-        L"Overrides possible --level and --ivs options."},
-    { "", "--rarity",
+        "Overrides possible --level and --ivs options."
+    },
+    {
+        "", "--rarity",
         L"Show only Pokémon with matching rarity type (normal/legendary/mythic). "
-        "By default all rarities are included."},
-    { "", "--showDuplicateForms",
+        "By default all rarities are included."
+    },
+    {
+        "", "--showDuplicateForms",
         L"Show duplicate Pokémon forms, i.e. forms that differ only by name and type. "
-        "By default, duplicates (same base stats) are not shown."},
-    //! @todo --effective - show the effective IVs, (iv + base stat) * CPM
+        "By default, duplicates (same base stats) are not shown."
+    },
     // Commands
-    { "sort", "",
-        L"Sort the Pokémon by certain criteria: "
-        "'number' (default), base 'attack'/'atk', base 'defense'/'def', base 'stamina'/'sta'/'hp', bulk (def*sta), "
-        "'total' (atk+def+sta), 'gender', or 'buddy' (buddy distance). Comparison operator (<, <=, =, >, or >=) and value "
-        "can be appended to the criteria, e.g. \"(atk>=200\" (make sure to use double quotes) will only include Pokémon "
-        "with base attack larger than or equal to 200 to the results. A name of Pokémon can also be used as the value: "
+    {
+        "sort", "",
+        L"Sort the Pokémon by certain criteria: 'number' (default), base 'attack'/'atk', base 'defense'/'def', "
+        "base 'stamina'/'sta'/'hp', bulk (def*sta), 'total' (atk+def+sta), 'gender', or 'buddy' (buddy distance). "
+        "Comparison operator (<, <=, =, >, or >=) and value can be appended to the criteria, e.g.' \"(atk>=200\"'"
+        "(make sure to use double quotes) will only include Pokémon with base attack larger than or equal to 200 "
+        "to the results. A name of Pokémon can also be used as the value: "
         "in this case the property of the specified Pokémon is used as the reference point."
     },
-    { "powerup", "",
+    {
+        "powerup", "",
         L"Calculate resources required to power up a Pokémon from certain level to another, e.g. "
         "'powerup 15,31.5'"
     },
-    { "perfect-ivs", "",
+    {
+        "perfect-ivs", "",
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
         L"Only single name/ID/number as an argument supported."
     },
     {
         "info", "",
         L"Print information about the available data set. Supported arguments: '' (print general info), "
-        "'moves' (list available moves)."},
-    { "typeinfo", "",
+        "'moves' (list available moves)."
+    },
+    {
+        "typeinfo", "",
         L"Print typing information for the given type(s) or Pokémon."
         "'typeinfo atk,<type1>[,type2]' prints attack(-combination)'s effectiveness against all types. "
         "'typeinfo def,<type1>[,type2]' prints defending type(-combination)'s information against all types. "
