@@ -1,76 +1,43 @@
 /**
     @file PoGoCmP.h
-    @brief C API for PoGoCmp. For C++ one can use the PoGoCmpDb.h directly. */
+    @brief */
 #pragma once
 
 #include "PoGoCmpApi.h"
 
-#include <stdint.h>
-#include <stddef.h>
-
-typedef enum PokemonType
+namespace PoGoCmp
 {
-    POKEMON_TYPE_NONE,
-    POKEMON_TYPE_BUG,
-    POKEMON_TYPE_DARK,
-    POKEMON_TYPE_DRAGON,
-    POKEMON_TYPE_ELECTRIC,
-    POKEMON_TYPE_FAIRY,
-    POKEMON_TYPE_FIGHTING,
-    POKEMON_TYPE_FIRE,
-    POKEMON_TYPE_FLYING,
-    POKEMON_TYPE_GHOST,
-    POKEMON_TYPE_GRASS,
-    POKEMON_TYPE_GROUND,
-    POKEMON_TYPE_ICE,
-    POKEMON_TYPE_NORMAL,
-    POKEMON_TYPE_POISON,
-    POKEMON_TYPE_PSYCHIC,
-    POKEMON_TYPE_ROCK,
-    POKEMON_TYPE_STEEL,
-    POKEMON_TYPE_WATER
-} PokemonType;
 
-struct PokemonSpecie
-{
-    //! Pokédex number.
-    uint16_t number;
-    //! Base attack.
-    uint16_t baseAtk;
-    //! Base defence.
-    uint16_t baseDef;
-    //! Base stamina (a.k.a. HP).
-    uint16_t baseSta;
-    //! Pokémon's specie name, uppercase with underscores
-    //! Punctuation and other "special" characters are replaced with underscores.
-    //! There are only a handful of Pokémon with special character's in their names:
-    //! - Farfetch'd -> FARFETCHD
-    //! - Ho-Oh -> HO_OH
-    //! - Flabébé -> Unknown at the moment, probably FLABEBE
-    //! - Nidoran♂  & Nidoran♀ -> NIDORAN_MALE & NIDORAN_FEMALE
-    //! The longest name (Crabominable) currently (in a distant PoGO future) has 12 characters,
-    //! but as Nidoran♀ is translated into NIDORAN_FEMALE the longest name has 14 characters.
-    //! https://bulbapedia.bulbagarden.net/wiki/List_of_Pokémon_by_name
-    char name[15];
-    //! Primary type.
-    PokemonType type;
-    //! Secondary type, if applicable.
-    PokemonType type2;
-    //! How much tracked buddy walking is required for a candy, in kilometers.
-    uint8_t buddyDistance;
-    //! If both malePercent and femalePercent are 0, it means the Pokémon is genderless.
-    float malePercent;
-    float femalePercent;
-};
+struct PokemonSpecie;
+struct Pokemon;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+const char* VersionString();
 
-POGOCMP_API const char* PoGoCmpVersionString();
+float GetCpm(float level);
 
-POGOCMP_API size_t NumPokemonInDb();
+//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
+//! @param atk baseAtk + atkIv, integer.
+//! @param def baseDef + defIv, integer.
+//! @param sta baseSta + staIv, integer.
+//! @note https://pokemongo.gamepress.gg/pokemon-stats-advanced
+int ComputeCp(float level, float atk, float def, float sta);
+//! @param base Pokémon's base stats.
+//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
+//! @param atk [0, 15], integer.
+//! @param def [0, 15], integer.
+//! @param sta [0, 15], integer.
+//! @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
+//! @return < 0 on invalid input, > 0 otherwise
+int ComputeCp(const PokemonSpecie& base, float level, float atk, float def, float sta);
+int ComputeCp(const PokemonSpecie& base, const PoGoCmp::Pokemon& pkm);
 
-#ifdef __cplusplus
-}
-#endif
+int ComputeStat(int base, int iv, float level);
+
+//! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
+//! @note For some reasons raid bosses have have different arbitrary formula without CPM.
+int ComputeRaidBossCp(const PokemonSpecie& base, const PoGoCmp::Pokemon& pkm);
+
+int MinCp(const PokemonSpecie& base);
+int MaxCp(const PokemonSpecie& base);
+
+} // ~namespace PoGoCmp

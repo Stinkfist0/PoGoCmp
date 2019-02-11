@@ -1,4 +1,7 @@
-﻿#include "ProgramOptions.h"
+﻿/**
+    @file main.cpp
+    @brief PoGoCmp command-line application. */
+#include "ProgramOptions.h"
 
 #include "../Lib/PoGoCmp.h"
 #include "../Lib/PoGoDb.h"
@@ -42,83 +45,6 @@ void Log(const Utf8::String& msg)
 void Log(const std::wstring& msg)
 {
     Utf8::PrintLine(Utf8::FromWString(msg), Utf8::OutputStream::Out);
-}
-
-//! @todo Move CP functions to the PoGoCmp API
-float GetCpm(float level)
-{
-    const auto numLevels = (float)PoGoCmp::PlayerLevel.cpMultiplier.size();
-    if (level  < 1 || level > numLevels) return NAN;
-    float levelIdx;
-    auto levelFact = std::modf(level, &levelIdx);
-    if (levelFact != 0.f && levelFact != 0.5f) return NAN;
-    levelIdx -= 1;
-    auto nextLevelIdx = std::min(levelIdx + 1, numLevels -1);
-    auto cpmBase = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)levelIdx];
-    auto cpmNext = PoGoCmp::PlayerLevel.cpMultiplier[(size_t)nextLevelIdx];
-    auto cpmStep = (std::pow(cpmNext, 2) - std::pow(cpmBase, 2)) / 2.f;
-    auto cpm = levelFact != 0.f ? std::sqrt(std::pow(cpmBase, 2) + cpmStep) : cpmBase;
-    return cpm;
-}
-
-//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
-//! @param atk baseAtk + atkIv, integer.
-//! @param def baseDef + defIv, integer.
-//! @param sta baseSta + staIv, integer.
-int ComputeCp(float level, float atk, float def, float sta)
-{
-    auto cpm = GetCpm(level);
-    if (std::isnan(cpm)) return -1;
-    return static_cast<int>(std::floor(atk * std::pow(def, 0.5f) * std::pow(sta, 0.5f) * std::pow(cpm, 2) / 10.f));
-}
-
-//! https://pokemongo.gamepress.gg/pokemon-stats-advanced
-//! @param base Pokémon's base stats.
-//! @param level [1,maxLevel], 0.5 steps, maxLevel 40 for now.
-//! @param atk [0, 15], integer.
-//! @param def [0, 15], integer.
-//! @param sta [0, 15], integer.
-//! @note The game doesn't show CP under 10 but this function returns the actual CP even for values below 10.
-//! @return < 0 on invalid input, > 0 otherwise
-int ComputeCp(const PoGoCmp::PokemonSpecie& base, float level, float atk, float def, float sta)
-{
-    if (atk < 0 || atk > 15) return -1;
-    if (def < 0 || def > 15) return -1;
-    if (sta < 0 || sta > 15) return -1;
-    atk = base.baseAtk + atk;
-    def = base.baseDef + def;
-    sta = base.baseSta + sta;
-    return ComputeCp(level, atk, def, sta);
-}
-
-int ComputeCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
-{
-    return ComputeCp(base, pkm.level, pkm.atk, pkm.def, pkm.sta);
-}
-
-int ComputeStat(int base, int iv, float level)
-{
-    return int(float(base + iv) * GetCpm(level));
-}
-
-//! https://www.reddit.com/r/TheSilphRoad/comments/6wrw6a/raid_boss_cp_explained_if_it_hasnt_been_already/
-//! @note For some reasons raid bosses have have different arbitrary formula without CPM.
-int ComputeRaidBossCp(const PoGoCmp::PokemonSpecie& base, const PoGoCmp::Pokemon& pkm)
-{
-    auto atk = base.baseAtk + pkm.atk;
-    auto def = base.baseDef + pkm.def;
-    auto sta = pkm.sta; // raid bosses have a fixed stamina and base stamina is ignored
-    return (int)std::floor(atk * std::sqrt(def) * std::sqrt(sta) / 10.f);
-}
-
-int MinCp(const PoGoCmp::PokemonSpecie& base)
-{
-    return ComputeCp(base, 1, 0, 0, 0);
-}
-
-int MaxCp(const PoGoCmp::PokemonSpecie& base)
-{
-    return ComputeCp(base, (float)PoGoCmp::PlayerLevel.cpMultiplier.size(), 15, 15, 15);
 }
 
 //! returns NAN if unknown criteria given
@@ -165,6 +91,8 @@ Utf8::String PokemonToString(
     bool useBaseName)
 {
     using namespace StringUtils;
+    using namespace PoGoCmp;
+
     const auto type = SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(base.type));
     const auto type2 = base.type2 == PoGoCmp::PokemonType::NONE
         ? "" : SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(base.type2));
@@ -379,7 +307,7 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("-v", "--version"))
     {
-        Log("PoGoCmpCli " + Utf8::String(PoGoCmpVersionString()));
+        Log("PoGoCmpCli " + Utf8::String(PoGoCmp::VersionString()));
         return EXIT_SUCCESS;
     }
 

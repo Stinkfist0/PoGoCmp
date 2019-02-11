@@ -30,6 +30,9 @@ static inline std::vector<std::string> Split(const std::string &s, char delim, S
 static inline std::string Join(const std::vector<std::string> &strings, const std::string& delim)
 {
     std::string ret;
+    //! @todo
+    //! numStrings = accumulate(strings.size)
+    //! ret.reserve(numStrings + numStrings * delim.size())?
     const auto size = strings.size();
     for (size_t i = 0; i < size; ++i)
     {
