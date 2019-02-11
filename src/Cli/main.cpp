@@ -244,38 +244,16 @@ void PrintHelp()
     Utf8::PrintLine(ss.str());
 }
 
-template<typename Target, typename Source>
-Target LexicalCast(Source arg)
-{
-    std::stringstream ss;
-    Target result;
-    if (!(ss << arg) || !(ss >> result) || !(ss >> std::ws).eof())
-    {
-        throw std::runtime_error("Bad lexical cast.");
-    }
-
-    return result;
-}
-
-template <typename T>
-T ParseValue(const std::string& str, T minVal, T maxVal)
-{
-    T val = LexicalCast<T>(str);
-    if (val < minVal || val > maxVal)
-        throw std::runtime_error("Value out of range.");
-    return val;
-}
-
 using FloatComparator = std::function<bool(float, float)>;
 FloatComparator MakeComparator(const std::string& comp)
 {
-    if (comp == "<") return FloatComparator([](float a, float b) { return a < b; });
-    if (comp == "<=") return FloatComparator([](float a, float b) { return a <= b; });
-    if (comp == ">") return FloatComparator([](float a, float b) { return a > b; });
-    if (comp == ">=") return FloatComparator([](float a, float b) { return a >= b; });
-    if (comp == "=") return FloatComparator([](float a, float b) { return MathUtils::Equals(a, b); });
-    //! \todo throw or some else error mechanism
-    return FloatComparator([](float /*a*/, float /*b*/) { return true; });
+    if (comp.empty()) return FloatComparator{[](float /*a*/, float /*b*/) { return true; }};
+    if (comp == "<") return FloatComparator{[](float a, float b) { return a < b; }};
+    if (comp == "<=") return FloatComparator{[](float a, float b) { return a <= b; }};
+    if (comp == ">") return FloatComparator{[](float a, float b) { return a > b; }};
+    if (comp == ">=") return FloatComparator{[](float a, float b) { return a >= b; }};
+    if (comp == "=") return FloatComparator{[](float a, float b) { return MathUtils::Equals(a, b); }};
+    throw std::runtime_error{"Unknown/unsupported comparator '" + comp + "'"};
 }
 
 bool IsFormName(const std::string& id)

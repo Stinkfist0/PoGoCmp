@@ -58,7 +58,8 @@ static inline void SnakeCaseToTitleCase(std::string &str)
         else str[i] = std::tolower(str[i], cLocale);
     }
 }
-[[nodiscard]] static inline std::string SnakeCaseToTitleCaseCopy(std::string str)
+[[nodiscard]]
+static inline std::string SnakeCaseToTitleCaseCopy(std::string str)
 {
     SnakeCaseToTitleCase(str);
     return str;
@@ -77,7 +78,8 @@ static inline void ToScreamingSnakeCase(std::string& str)
         }
     );
 }
-[[nodiscard]] static inline std::string ToScreamingSnakeCaseCopy(std::string str)
+[[nodiscard]]
+static inline std::string ToScreamingSnakeCaseCopy(std::string str)
 {
     ToScreamingSnakeCase(str);
     return str;
@@ -88,6 +90,25 @@ static inline bool IsNumber(const std::string& str)
     char* p;
     (void)std::strtod(str.c_str(), &p);
     return *p == 0;
+}
+
+template<typename Target, typename Source>
+Target LexicalCast(Source arg)
+{
+    std::stringstream ss;
+    Target result;
+    if (!(ss << arg) || !(ss >> result) || !(ss >> std::ws).eof())
+        throw std::runtime_error("Bad lexical cast.");
+    return result;
+}
+
+template <typename T>
+T ParseValue(const std::string& str, T minVal, T maxVal)
+{
+    T val = LexicalCast<T>(str);
+    if (val < minVal || val > maxVal)
+        throw std::runtime_error("Value out of range.");
+    return val;
 }
 
 // https://stackoverflow.com/a/18899027
