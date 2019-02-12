@@ -264,6 +264,15 @@ bool IsFormName(const std::string& id)
     ) != PoGoCmp::FormNames.end();
 }
 
+template <typename T>
+T ParseValue(const std::string& str, T minVal, T maxVal)
+{
+    T val = StringUtils::LexicalCast<T>(str);
+    if (val < minVal || val > maxVal)
+        throw std::runtime_error("Value out of range.");
+    return val;
+}
+
 int main(int argc, char **argv)
 {
     ProgamOptionMap opts{Utf8::ParseArguments(argc, argv)};

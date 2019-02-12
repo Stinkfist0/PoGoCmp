@@ -15,6 +15,7 @@ namespace StringUtils
 
 enum SplitOptions : bool { RemoveEmptyEntries, KeepEmptyEntries };
 
+[[nodiscard]]
 static inline std::vector<std::string> Split(const std::string &s, char delim, SplitOptions opts)
 {
     std::vector<std::string> entries;
@@ -27,6 +28,7 @@ static inline std::vector<std::string> Split(const std::string &s, char delim, S
    return entries;
 }
 
+[[nodiscard]]
 static inline std::string Join(const std::vector<std::string> &strings, const std::string& delim)
 {
     std::string ret;
@@ -85,6 +87,7 @@ static inline std::string ToScreamingSnakeCaseCopy(std::string str)
     return str;
 }
 
+[[nodiscard]]
 static inline bool IsNumber(const std::string& str)
 {
     char* p;
@@ -100,15 +103,6 @@ Target LexicalCast(Source arg)
     if (!(ss << arg) || !(ss >> result) || !(ss >> std::ws).eof())
         throw std::runtime_error("Bad lexical cast.");
     return result;
-}
-
-template <typename T>
-T ParseValue(const std::string& str, T minVal, T maxVal)
-{
-    T val = LexicalCast<T>(str);
-    if (val < minVal || val > maxVal)
-        throw std::runtime_error("Value out of range.");
-    return val;
 }
 
 // https://stackoverflow.com/a/18899027
