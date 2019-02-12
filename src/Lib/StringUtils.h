@@ -71,26 +71,6 @@ static inline std::string SnakeCaseToTitleCaseCopy(std::string str)
     return str;
 }
 
-//! All non-alphanumeric characters are converted to underscores, C locale.
-static inline void ToScreamingSnakeCase(std::string& str)
-{
-    const auto& cLocale = std::locale::classic();
-    std::transform(
-        str.begin(), str.end(), str.begin(),
-        [&cLocale](auto c)
-        {
-            if (!std::isalnum(c, cLocale)) return '_';
-            else return std::toupper(c, cLocale);
-        }
-    );
-}
-[[nodiscard]]
-static inline std::string ToScreamingSnakeCaseCopy(std::string str)
-{
-    ToScreamingSnakeCase(str);
-    return str;
-}
-
 [[nodiscard]]
 static inline bool IsNumber(const std::string& str)
 {

@@ -370,7 +370,7 @@ int main(int argc, char **argv)
         // types as indices to TypeEffectiveness table
         std::vector<std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>> attackTypes, defenderTypes;
 
-        const auto types = Split(typeinfo, ',', StringUtils::RemoveEmptyEntries);
+        const auto types = Split(typeinfo, ",", StringUtils::RemoveEmptyEntries);
         const auto cmd = types[0];
         if (cmd == "atk" || cmd == "def") // typeinfo <atk|def>,<type1>[,type2]
         {
@@ -870,7 +870,7 @@ int main(int argc, char **argv)
     }
     else if (auto powerup = opts.OptionValue("powerup"); !powerup.empty())
     {
-        auto powerupRange = Split(powerup, ',', StringUtils::RemoveEmptyEntries);
+        auto powerupRange = Split(powerup, ",", StringUtils::RemoveEmptyEntries);
         if (powerupRange.size() != 2)
             LogErrorAndExit("Power-up range must consist of two comma-separated numbers.");
 
