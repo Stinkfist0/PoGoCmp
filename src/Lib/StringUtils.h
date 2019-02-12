@@ -16,12 +16,16 @@ namespace StringUtils
 enum SplitOptions : bool { RemoveEmptyEntries, KeepEmptyEntries };
 
 [[nodiscard]]
-static inline std::vector<std::string> Split(const std::string &s, char delim, SplitOptions opts)
+static inline std::vector<std::string> Split(const std::string& str, const std::string& delim, SplitOptions opts)
 {
     std::vector<std::string> entries;
-    std::istringstream stream{ s };
-    for (std::string entry; std::getline(stream, entry, delim);)
+    std::string entry;
+    for(size_t startPos = 0, endPos = str.find(delim);
+        startPos <= str.size();
+        startPos += entry.size() + delim.size())
     {
+        endPos = std::min(str.size(), str.find(delim, startPos));
+        entry = str.substr(startPos, endPos - startPos);
         if (opts == SplitOptions::KeepEmptyEntries || !entry.empty())
             entries.push_back(entry);
     }
