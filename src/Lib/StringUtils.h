@@ -19,6 +19,16 @@ enum SplitOptions : bool { RemoveEmptyEntries, KeepEmptyEntries };
 static inline std::vector<std::string> Split(const std::string& str, const std::string& delim, SplitOptions opts)
 {
     std::vector<std::string> entries;
+    if (str.empty())
+    {
+        return entries;
+    }
+    if (delim.empty())
+    {
+        entries.emplace_back(str);
+        return entries;
+    }
+
     std::string entry;
     for(size_t startPos = 0, endPos = str.find(delim);
         startPos <= str.size();
