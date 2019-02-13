@@ -15,11 +15,27 @@ int main()
 
     const std::string str{"yksi, two, 3.141592635359,"}; // empty entry at the end
     auto strSplit = Split(str, ",", SplitOptions::RemoveEmptyEntries);
-    AssertTrue(strSplit.size() == 3, "Split(SplitOptions::RemoveEmptyEntries) not working.");
+    AssertTrue(strSplit.size() == 3, "Split(RemoveEmptyEntries) not working.");
     strSplit = Split(str, ",", SplitOptions::KeepEmptyEntries);
-    AssertTrue(strSplit.size() == 4, "Split(SplitOptions::KeepEmptyEntries) not working.");
+    AssertTrue(strSplit.size() == 4, "Split(KeepEmptyEntries) not working.");
     auto strJoined = Join(strSplit, ",");
     AssertTrue(str == strJoined, "String not the same after split and join.");
+    AssertTrue(
+        Split("", ",", SplitOptions::RemoveEmptyEntries).empty(),
+        "Split(RemoveEmptyEntries) for an empty string yields a non-empty array"
+    );
+    AssertTrue(
+        Split("", ",", SplitOptions::KeepEmptyEntries).empty(),
+        "Split(KeepEmptyEntries) for an empty string yields a non-empty array"
+    );
+    AssertTrue(
+        Split(str, "", SplitOptions::RemoveEmptyEntries).front() == str,
+        "Split(RemoveEmptyEntries) with an empty delimeter does not result a vector with the original string"
+    );
+    AssertTrue(
+        Split(str, "", SplitOptions::KeepEmptyEntries).front() == str,
+        "Split(KeepEmptyEntries) with an empty delimeter does not result a vector with the original string"
+    );
 
     std::string caseStr{"snake_case_123_!"};
     auto copy = SnakeCaseToTitleCaseCopy(caseStr);
@@ -31,6 +47,24 @@ int main()
     const auto pi = 3.14159265358979323846f;
     const auto piFromStr = LexicalCast<float>(strSplit[2]);
     AssertTrue(MathUtils::Equals(pi, pi), strSplit[2] + " is not equal to pi");
+    try
+    {
+        LexicalCast<float>("asdf");
+        std::cerr << "string-float LexicalCast doesn't throw on invalid input\n";
+        return EXIT_FAILURE;
+    }
+    catch (... /*const std::runtime_error&*/) {}
+
+    try
+    {
+        LexicalCast<std::string>(pi);
+    }
+    catch (... /*const std::runtime_error&*/)
+    {
+        std::cerr << "float-string LexicalCast throws on valid input\n";
+        return EXIT_FAILURE;
+    }
+
 
     AssertTrue(Concat("Hello", ",", " ", "World", "!") == "Hello, World!", "Concat not working.");
 
