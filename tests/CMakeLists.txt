@@ -1,4 +1,4 @@
-# name - a single name used by the test, executable, and source
+# name - the name used as the names of the test, executable, and source file.
 macro(AddTest name)
     add_executable(${name} ${name}.cpp)
     target_link_libraries(${name} PoGoCmp)
@@ -11,3 +11,4 @@ endmacro()
 
 AddTest(Test1)
 AddTest(NameTest)
+AddTest(StringUtilsTest)
