@@ -7,7 +7,7 @@
 Project description TBA.
 
 ## Supported platforms
-- Windows & MSVC (MinGW should probably work, untested currently)
+- Windows & MSVC
 - *nix & GCC/Clang (macOS untested currently)
 
 ## Prerequisites
@@ -15,13 +15,26 @@ Project description TBA.
 - C++17-capable compiler
 
 ## Dependencies
- - [JSON for Modern C++ 3.1.1](https://github.com/nlohmann/json), embedded in the repository
+ - [JSON for Modern C++](https://github.com/nlohmann/json)
+
+The dependencies for the project are obtained using [vcpkg](https://vcpkg.readthedocs.io). Obtain vcpkg
+if necessary:
+```
+> git clone https://github.com/Microsoft/vcpkg.git
+> cd vcpkg
+> .\bootstrap-vcpkg.bat (or ./bootstrap-vcpkg.sh on *nix)
+```
+and install the dependencies:
+```
+> set VCPKG_DEFAULT_TRIPLET=x64-windows (x86 by default)
+> .\vcpkg.exe install nlohmann-json
+```
 
 ## Configuration
 See the beginning of the root `CMakeLists.txt` for the build options.
 ```
 mkdir build && cd build
-cmake .. -DEXAMPLE_OPTION=1
+cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake -DEXAMPLE_OPTION=1
 ```
 
 ## Building

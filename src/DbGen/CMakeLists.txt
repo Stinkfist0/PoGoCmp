@@ -1,5 +1,6 @@
 add_executable(PoGoDbGen PoGoDbGen.cpp)
-target_link_libraries(PoGoDbGen PoGoCmp)
+
+target_link_libraries(PoGoDbGen PoGoCmp nlohmann_json)
 if (ENABLE_COVERAGE)
     target_link_libraries(PoGoDbGen --coverage)
 endif()

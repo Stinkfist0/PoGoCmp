@@ -10,7 +10,15 @@ addons:
       - g++-8
 
 script:
-  - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake . -DENABLE_COVERAGE=1
+  - export CXX=/usr/bin/g++-8
+  - export CC=/usr/bin/gcc-8
+  - git clone https://github.com/Microsoft/vcpkg.git
+  - cd vcpkg
+  - ./bootstrap-vcpkg.sh
+  - export VCPKG_DEFAULT_TRIPLET=x64-linux
+  - ./vcpkg install nlohmann-json
+
+  - cmake . -DENABLE_COVERAGE=1
   - cmake --build . -- -j2
   - ctest --verbose -j2
   - wget https://raw.githubusercontent.com/pokemongo-dev-contrib/pokemongo-game-master/master/versions/latest/GAME_MASTER.json

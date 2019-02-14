@@ -1,3 +1,4 @@
 # Ignore contents of the default build and install directories
 /build*/
 /installed*/
+/vcpkg

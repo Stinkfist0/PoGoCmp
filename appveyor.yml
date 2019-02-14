@@ -1,13 +1,29 @@
 image:
   - Visual Studio 2017
+
 clone_folder: c:\projects\source
+
+cache: c:\tools\vcpkg\installed\
+
+install:
+- cd C:\Tools\vcpkg
+- git pull
+- .\bootstrap-vcpkg.bat
+- cd %APPVEYOR_BUILD_FOLDER%
+
 build_script:
 - cmd: >-
+    set VCPKG_DEFAULT_TRIPLET=x64-windows
+
+    vcpkg integrate install
+
+    vcpkg install nlohmann-json
+
     mkdir build
 
     cd build
 
-    cmake c:\projects\source -G "Visual Studio 15 2017 Win64"
+    cmake c:\projects\source -G "Visual Studio 15 2017 Win64" -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake
 
     cmake --build . --config "RelWithDebInfo"
 

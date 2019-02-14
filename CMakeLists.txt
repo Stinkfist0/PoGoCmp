@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 
-project(PoGoCmp)
+project(PoGoCmp CXX)
+
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # BUILD_SHARED_LIBS is provided by CMake, typed explicitly here for documentation purposes
 option(BUILD_SHARED_LIBS "Build PoGoCmp as a shared lib." OFF)

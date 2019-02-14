@@ -5,16 +5,8 @@
 ///! @todo try to remove the self-dependency
 #include "../Lib/PoGoDb.h"
 #include "../Lib/MathUtils.h"
-#ifdef _MSC_VER
-// Disable couple MSVC's static analyser warnings coming from json.hpp
-// The C28020 in particular is probably a false positive.
-#pragma warning(push)
-#pragma warning(disable : 6031 28020)
-#endif
-#include "../ThirdParty/nlohmann/json/json.hpp"
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+
+#include <nlohmann\json.hpp>
 
 #include <iostream>
 #include <fstream>
