@@ -8,7 +8,7 @@ endif()
 add_library(PoGoCmp ${headers} ${sources})
 target_link_libraries(PoGoCmp)
 if (ENABLE_COVERAGE)
-    target_link_libraries(PoGoCmp)
+    target_link_libraries(PoGoCmp --coverage)
 endif()
 
 install(FILES ${headers} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
