@@ -16,7 +16,7 @@ script:
   - cd vcpkg
   - ./bootstrap-vcpkg.sh
   - export VCPKG_DEFAULT_TRIPLET=x64-linux
-  - ./vcpkg install nlohmann-json
+  - ./vcpkg install nlohmann-json range-v3
 
   - cmake . -DENABLE_COVERAGE=1
   - cmake --build . -- -j2

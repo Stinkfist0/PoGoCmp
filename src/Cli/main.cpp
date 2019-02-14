@@ -18,6 +18,8 @@
 #include <climits>
 #include <cassert>
 
+#include <range/v3/algorithm/sort.hpp>
+
 const Utf8::String defaultFormat{ "%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n" };
 
 void LogE(const Utf8::String& msg)
@@ -447,10 +449,7 @@ int main(int argc, char **argv)
         }
 
         // sort the results, NVE first, neutral second, SE last
-        std::sort(
-            results.begin(), results.end(),
-            [](const auto& a, const auto& b) { return a.scalar < b.scalar; }
-        );
+        ranges::sort(results, [](const auto& a, const auto& b) { return a.scalar < b.scalar; });
 
         for (const auto& te: results)
         {
@@ -737,8 +736,8 @@ int main(int argc, char **argv)
         }
 
         // remove duplicate and overlapping results
-        std::sort(
-            results.begin(), results.end(),
+        ranges::sort(
+            results,
             [](const auto& a, const auto& b)
             {
                 if (a.number < b.number) return true;
@@ -829,8 +828,8 @@ int main(int argc, char **argv)
         }
 
         // Finally sort according the sorting criteria...
-        std::sort(
-            results.begin(), results.end(),
+        ranges::sort(
+            results,
             [&sortCmp, &sortCriteria](const auto& lhs, const auto& rhs)
             {
                 return sortCmp(PropertyValueByName(lhs, sortCriteria), PropertyValueByName(rhs, sortCriteria));

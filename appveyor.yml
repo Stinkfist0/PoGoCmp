@@ -17,7 +17,7 @@ build_script:
 
     vcpkg integrate install
 
-    vcpkg install nlohmann-json
+    vcpkg install nlohmann-json range-v3
 
     mkdir build
 

@@ -16,6 +16,7 @@ Project description TBA.
 
 ## Dependencies
  - [JSON for Modern C++](https://github.com/nlohmann/json)
+ - [Range-v3](https://github.com/ericniebler/range-v3)
 
 The dependencies for the project are obtained using [vcpkg](https://vcpkg.readthedocs.io). Obtain vcpkg
 if necessary:
@@ -27,7 +28,7 @@ if necessary:
 and install the dependencies:
 ```
 > set VCPKG_DEFAULT_TRIPLET=x64-windows (x86 by default)
-> .\vcpkg.exe install nlohmann-json
+> .\vcpkg.exe install nlohmann-json range-v3
 ```
 
 ## Configuration
