@@ -17,8 +17,9 @@ script:
   - ./bootstrap-vcpkg.sh
   - export VCPKG_DEFAULT_TRIPLET=x64-linux
   - ./vcpkg install nlohmann-json range-v3
-
-  - cmake . -DENABLE_COVERAGE=1
+  - cd ..
+  
+  - cmake . -DCMAKE_TOOLCHAIN_FILE=/home/travis/build/Stinkfist0/PoGoCmp/vcpkg/scripts/buildsystems/vcpkg.cmake -DENABLE_COVERAGE=1
   - cmake --build . -- -j2
   - ctest --verbose -j2
   - wget https://raw.githubusercontent.com/pokemongo-dev-contrib/pokemongo-game-master/master/versions/latest/GAME_MASTER.json
