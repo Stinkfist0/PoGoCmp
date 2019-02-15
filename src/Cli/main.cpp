@@ -19,6 +19,7 @@
 #include <cassert>
 
 #include <range/v3/algorithm/sort.hpp>
+#include <range/v3/algorithm/transform.hpp>
 
 const Utf8::String defaultFormat{ "%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n" };
 
@@ -119,13 +120,15 @@ Utf8::String PokemonToString(
     const auto cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
 
+    auto snakeCaseToTitleCase = [](auto s) { SnakeCaseToTitleCase(s); return s; };
+    auto formatList = [](const auto& v) { return "[" + StringUtils::Join(v, ", ") + "]"; };
     auto moves = base.fastMoves;
-    std::transform(moves.begin(), moves.end(), moves.begin(), [](auto m) { SnakeCaseToTitleCase(m); return m; });
-    fmt = std::regex_replace(fmt, std::regex{"%fm"}, "[" + StringUtils::Join(moves, ", ") + "]");
+    ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
+    fmt = std::regex_replace(fmt, std::regex{"%fm"}, formatList(moves));
 
     moves = base.chargeMoves;
-    std::transform(moves.begin(), moves.end(), moves.begin(), [](auto m) { SnakeCaseToTitleCase(m); return m; });
-    fmt = std::regex_replace(fmt, std::regex{"%cm"}, "[" + StringUtils::Join(moves, ", ") + "]");
+    ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
+    fmt = std::regex_replace(fmt, std::regex{"%cm"}, formatList(moves));
 
     fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
     //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
