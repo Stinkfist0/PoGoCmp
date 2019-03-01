@@ -234,8 +234,19 @@ const std::vector<ProgramOption> programsOptions{
     }
 };
 
+void PrintShortHelp()
+{
+    std::stringstream ss;
+    ss << "Supported commands:\n";
+    for (const auto& opt : programsOptions)
+        if (opt.type == ProgramOption::Cmd)
+            ss << "  " << opt << "\n";
+    ss << "See -h/--help for more details.\n";
+    Utf8::PrintLine(ss.str());
+}
+
 //! @todo indentation
-void PrintHelp()
+void PrintLongHelp()
 {
     std::stringstream ss;
     ss << "Supported commands:\n";
@@ -284,7 +295,7 @@ int main(int argc, char **argv)
     if (opts.args.empty())
     {
         LogE("Invalid usage.");
-        PrintHelp();
+        PrintShortHelp();
         return EXIT_FAILURE;
     }
 
@@ -308,7 +319,7 @@ int main(int argc, char **argv)
 
     if (opts.HasOption("-h", "--help"))
     {
-        PrintHelp();
+        PrintLongHelp();
         return EXIT_SUCCESS;
     }
 
