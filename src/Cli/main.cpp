@@ -21,7 +21,19 @@
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/transform.hpp>
 
-const Utf8::String defaultFormat{ "%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n" };
+// "%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
+// "%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
+// "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
+// "(charge moves) %b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab). "
+const Utf8::String fullInfoFormat{
+    "%nu) %na\\n"
+    "%Tt,  %ba-%bd-%bs, max. CP %cp\\n"
+    "Fast moves: %fm\\n"
+    "Charge moves: %cm\\n"
+    "Gender ratio: %g\\n"
+    "Buddy distance: %b km\\n"
+};
+const Utf8::String defaultFormat{"%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n"};
 
 void LogE(const Utf8::String& msg)
 {
@@ -222,8 +234,8 @@ const std::vector<ProgramOption> programsOptions{
     },
     {
         "info", "",
-        L"Print information about the available data set. Supported arguments: '' (print general info), "
-        L"'moves' (list available moves)."
+        L"Print full information about the specific Pokémon."//, move, or type."
+        L"Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {
         "typeinfo", "",
@@ -231,6 +243,9 @@ const std::vector<ProgramOption> programsOptions{
         L"'typeinfo atk,<type1>[,type2]' prints attack(-combination)'s effectiveness against all types. "
         L"'typeinfo def,<type1>[,type2]' prints defending type(-combination)'s information against all types. "
         L"'typeinfo <pokemon> prints a single Pokémon's type information."
+    },
+    {
+        "moves", "", L"List the available moves."
     }
 };
 
@@ -261,6 +276,7 @@ void PrintLongHelp()
 }
 
 using FloatComparator = std::function<bool(float, float)>;
+
 FloatComparator MakeComparator(const std::string& comp)
 {
     if (comp.empty()) return FloatComparator{[](float /*a*/, float /*b*/) { return true; }};
@@ -287,6 +303,97 @@ T ParseValue(const std::string& str, T minVal, T maxVal)
     if (val < minVal || val > maxVal)
         throw std::runtime_error("Value out of range.");
     return val;
+}
+
+struct RangeWithForm
+{
+    RangeWithForm() = default;
+    RangeWithForm(const PoGoCmp::PokedexRange& range) :
+        first{range.first},
+        second{range.second}
+    {
+    }
+
+    PoGoCmp::PokedexNumber first{}, second{};
+    std::string formId; // used if single form requested
+};
+
+RangeWithForm ParsePokedexRange(
+    std::string rangeFirst,
+    std::string rangeSecond = "")
+{
+    using namespace PoGoCmp;
+    using namespace StringUtils;
+    RangeWithForm range;
+
+    //! @todo trim in the regex instead of using trim() functions
+    Trim(rangeFirst);
+    Trim(rangeSecond);
+
+    if (IsNumber(rangeFirst))
+    {
+        range.first = (PokedexNumber)std::stoul(rangeFirst);
+    }
+    else
+    {
+        const auto id = PokemonNameToId(rangeFirst);
+        range.first = PokemonByIdName(id).number;
+        if (range.first == 0)
+            LogErrorAndExit("'" + rangeFirst + "' is not a valid name/ID.");
+        if (IsFormName(id))
+            range.formId = id;
+    }
+
+    if (rangeSecond.empty())
+    {
+        range.second = range.first;
+    }
+    else if (IsNumber(rangeFirst))
+    {
+        range.second = (PoGoCmp::PokedexNumber)std::stoul(rangeSecond);
+    }
+    else
+    {
+        const auto id = PokemonNameToId(rangeSecond);
+        range.second = PokemonByIdName(id).number;
+        if (range.second == 0)
+            LogErrorAndExit("'" + rangeSecond + "' is not a valid name/ID.");
+    }
+
+    if (range.first != range.second && !range.formId.empty())
+    {
+        LogErrorAndExit(L"A form name can be used only when specifying a single-Pokémon range.");
+    }
+
+    if (range.first < 1)
+    {
+        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) +
+            ") cannot be less than 1");
+    }
+    if (range.first > range.second)
+    {
+        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) +
+            ") cannot be greater than max. (" + std::to_string(range.second) + ")");
+    }
+
+    auto isWithinRange = [](const auto& r, const auto& value)
+    {
+        return value >= r.first && value <= r.second;
+    };
+
+    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
+        [&](const auto& r) { return isWithinRange(r, range.first); }))
+    {
+        LogErrorAndExit("Range's min. " + std::to_string(range.first) +
+            " not within valid ranges.");
+    }
+    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
+        [&](const auto& r) { return isWithinRange(r, range.second); }))
+    {
+        LogErrorAndExit("Range's max. " + std::to_string(range.second) +
+            " not within valid ranges.");
+    }
+    return range;
 }
 
 int main(int argc, char **argv)
@@ -325,49 +432,114 @@ int main(int argc, char **argv)
 
     int ret = EXIT_FAILURE;
 
-    //! @todo Use info also to list type-effectiveness, attacks, etc.
+    PoGoCmp::Pokemon pokemon{};
+    pokemon.level = 40.f;
+    pokemon.atk = 15;
+    pokemon.def = 15;
+    pokemon.sta = 15;
+
+    if (auto level = opts.OptionValue("--level"); !level.empty())
+    {
+        try
+        {
+            pokemon.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
+        }
+        catch (const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
+        }
+    }
+
+    if (auto ivs = opts.OptionValue("--ivs"); !ivs.empty())
+    {
+        if (std::count_if(ivs.begin(), ivs.end(),
+            [](auto c) { return std::isxdigit(c, std::locale::classic()); }) != 3)
+        {
+            LogErrorAndExit("Value must consist of exactly three hexadecimal digits.");
+        }
+
+        try
+        {
+            auto values = std::stoul(ivs, nullptr, 16);
+            pokemon.atk = (values & 0xF00) >> 8;
+            pokemon.def = (values & 0x0F0) >> 4;
+            pokemon.sta = (values & 0x00F);
+        }
+        catch (const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Failed to parse --ivs value '", ivs, "': ", e.what()));
+        }
+    }
+
+    if (auto level = opts.OptionValue("--raidLevel"); !level.empty())
+    {
+        if (opts.HasOption("--level"))
+            Log("--level value is ignored due to --raidLevel.");
+        if (opts.HasOption("--ivs"))
+            Log("--ivs value is ignored due to --raidLevel.");
+
+        try
+        {
+            auto raidLevel = ParseValue(level, 1, (int)RaidLevels.size());
+            pokemon = RaidLevels[raidLevel - 1];
+        }
+        catch (const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
+        }
+    }
+
     if (opts.HasOption("info"))
     {
-        if (auto info = opts.OptionValues("info"); std::find(info.begin(), info.end(), "moves") != info.end())
+        try
         {
-            Log(std::to_string(PoGoCmp::Moves.size()) + " moves available:");
-            auto isMoveInUse = [](const std::string& id)
-            {
-                return std::any_of(
-                    PoGoCmp::PokemonByNumber.begin(), PoGoCmp::PokemonByNumber.end(),
-                    [&id](const auto& kvp)
-                    {
-                        return
-                            std::any_of(kvp.second.fastMoves.begin(), kvp.second.fastMoves.end(),
-                                        [&id](const auto& fmId) { return fmId == id; }) ||
-                            std::any_of(kvp.second.chargeMoves.begin(), kvp.second.chargeMoves.end(),
-                                        [&id](const auto& cmId) { return cmId == id; });
-                    }
-                );
-            };
+            auto range = ParsePokedexRange(opts.OptionValue("info"));
+            auto base = PoGoCmp::PokemonByNumber.equal_range(range.first).first->second;
+            Utf8::Print(PokemonToString(base, pokemon, fullInfoFormat, "", false));
+            ret = EXIT_SUCCESS;
+        }
+        catch(const std::exception& e)
+        {
+            LogErrorAndExit(Concat("Not a valid name or number: ", e.what()));
+        }
 
-            for (const auto& m : PoGoCmp::Moves)
+        //! @todo
+        //else if (info.empty())
+        //{
+        //    //! @todo
+        //    //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
+        //    Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
+
+        //    ret = EXIT_SUCCESS;
+        //}
+    }
+    else if (opts.HasOption("moves"))
+    {
+        Log(std::to_string(PoGoCmp::Moves.size()) + " moves available:");
+        auto isMoveInUse = [](const std::string& id)
+        {
+            return std::any_of(
+                PoGoCmp::PokemonByNumber.begin(), PoGoCmp::PokemonByNumber.end(),
+                [&id](const auto& kvp)
             {
-                std::cout << m.id;
-                if (!isMoveInUse(m.id)) Utf8::Print("*");
-                Utf8::PrintLine("");
+                return
+                    std::any_of(kvp.second.fastMoves.begin(), kvp.second.fastMoves.end(),
+                        [&id](const auto& fmId) { return fmId == id; }) ||
+                    std::any_of(kvp.second.chargeMoves.begin(), kvp.second.chargeMoves.end(),
+                        [&id](const auto& cmId) { return cmId == id; });
             }
-            Log(L"*) Move currently available in any Pokémon's moveset.");
+            );
+        };
 
-            ret = EXIT_SUCCESS;
-        }
-        else if (info.empty())
+        for (const auto& m : PoGoCmp::Moves)
         {
-            //! @todo
-            //Log("Available Pokedex range: " + std::to_string(MaxRange.first) + "-" + std::to_string(MaxRange.second));
-            Log("Number of Trainer/Pokemon levels: " + std::to_string(PoGoCmp::PlayerLevel.cpMultiplier.size()));
+            Utf8::Print(m.id);
+            if (!isMoveInUse(m.id)) Utf8::Print("*");
+            Utf8::PrintLine("");
+        }
+        Log(L"*) Move currently available in any Pokémon's moveset.");
 
-            ret = EXIT_SUCCESS;
-        }
-        else
-        {
-            LogErrorAndExit("Unknown argument for 'info' command.");
-        }
+        ret = EXIT_SUCCESS;
     }
     else if (opts.HasOption("typeinfo"))
     {
@@ -488,19 +660,6 @@ int main(int argc, char **argv)
         };
         std::wsmatch rangeMatches;
 
-        struct RangeWithForm
-        {
-            RangeWithForm() = default;
-            RangeWithForm(const PokedexRange& range) :
-                first{range.first},
-                second{range.second}
-            {
-            }
-
-            PokedexNumber first{}, second{};
-            std::string formId; // used if single form requested
-        };
-
         std::vector<RangeWithForm> ranges;
         auto includes = opts.OptionValues("-i", "--include");
         if (includes.empty())
@@ -521,76 +680,10 @@ int main(int argc, char **argv)
             {
                 try
                 {
-                    auto rangeFirst = Utf8::FromWString(rangeMatches[1].str());
-                    //! @todo trim in the regex instead of using trim() functions
-                    Trim(rangeFirst);
-                    //auto type = rangeMatches[2].str();
-                    auto rangeSecond = rangeMatches.size() > 2 ? Utf8::FromWString(rangeMatches[3].str()) : "";
-                    Trim(rangeSecond);
-
-                    if (IsNumber(rangeFirst))
-                    {
-                        range.first = (PokedexNumber)std::stoul(rangeFirst);
-                    }
-                    else
-                    {
-                        const auto id = PoGoCmp::PokemonNameToId(rangeFirst);
-                        range.first = PoGoCmp::PokemonByIdName(id).number;
-                        if (range.first == 0)
-                            LogErrorAndExit("'" + rangeFirst + "' is not a valid name/ID.");
-                        if (IsFormName(id))
-                            range.formId = id;
-                    }
-
-                    if (rangeSecond.empty())
-                    {
-                        range.second = range.first;
-                    }
-                    else if (IsNumber(rangeFirst))
-                    {
-                        range.second = (PokedexNumber)std::stoul(rangeSecond);
-                    }
-                    else
-                    {
-                        const auto id = PoGoCmp::PokemonNameToId(rangeSecond);
-                        range.second = PoGoCmp::PokemonByIdName(id).number;
-                        if (range.second == 0)
-                            LogErrorAndExit("'" + rangeSecond + "' is not a valid name/ID.");
-                    }
-
-                    if (range.first != range.second && !range.formId.empty())
-                    {
-                        LogErrorAndExit(L"A form name can be used only when specifying a single-Pokémon range.");
-                    }
-
-                    if (range.first < 1)
-                    {
-                        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) +
-                            ") cannot be less than 1");
-                    }
-                    if (range.first > range.second)
-                    {
-                        LogErrorAndExit("Range's index min. (" + std::to_string(range.first) +
-                            ") cannot be greater than max. (" + std::to_string(range.second) + ")");
-                    }
-
-                    auto isWithinRange = [](const auto& r, const auto& value)
-                    {
-                        return value >= r.first && value <= r.second;
-                    };
-
-                    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
-                        [&](const auto& r) { return isWithinRange(r, range.first); }))
-                    {
-                        LogErrorAndExit("Range's min. " + std::to_string(range.first) +
-                            " not within valid ranges.");
-                    }
-                    if (std::none_of(ValidRanges.begin(), ValidRanges.end(),
-                        [&](const auto& r) { return isWithinRange(r, range.second); }))
-                    {
-                        LogErrorAndExit("Range's max. " + std::to_string(range.second) +
-                            " not within valid ranges.");
-                    }
+                    range = ParsePokedexRange(
+                        Utf8::FromWString(rangeMatches[1].str()),
+                        (rangeMatches.size() > 2 ? Utf8::FromWString(rangeMatches[3].str()) : "")
+                    );
                 }
                 catch (const std::exception& e)
                 {
@@ -629,63 +722,6 @@ int main(int argc, char **argv)
             if (format.empty())
             {
                 LogErrorAndExit("Value missing for -f/--format\n");
-            }
-        }
-
-        Pokemon pokemon{};
-        pokemon.level = 40.f;
-        pokemon.atk = 15;
-        pokemon.def = 15;
-        pokemon.sta = 15;
-
-        if (auto level = opts.OptionValue("--level"); !level.empty())
-        {
-            try
-            {
-                pokemon.level = ParseValue(level, 1.f, (float)PoGoCmp::PlayerLevel.cpMultiplier.size());
-            }
-            catch (const std::exception& e)
-            {
-                LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
-            }
-        }
-
-        if (auto ivs = opts.OptionValue("--ivs"); !ivs.empty())
-        {
-            if (std::count_if(ivs.begin(), ivs.end(),
-                [](auto c) { return std::isxdigit(c, std::locale::classic()); }) != 3)
-            {
-                LogErrorAndExit("Value must consist of exactly three hexadecimal digits.");
-            }
-
-            try
-            {
-                auto values = std::stoul(ivs, nullptr, 16);
-                pokemon.atk = (values & 0xF00) >> 8;
-                pokemon.def = (values & 0x0F0) >> 4;
-                pokemon.sta = (values & 0x00F);
-            }
-            catch (const std::exception& e)
-            {
-                LogErrorAndExit(Concat("Failed to parse --ivs value '", ivs, "': ", e.what()));
-            }
-        }
-
-        if (auto level = opts.OptionValue("--raidLevel"); !level.empty())
-        {
-            if (opts.HasOption("--level"))
-                Log("--level value is ignored due to --raidLevel.");
-            if (opts.HasOption("--ivs"))
-                Log("--ivs value is ignored due to --raidLevel.");
-
-            try
-            {
-                auto raidLevel = ParseValue(level, 1, (int)RaidLevels.size());
-                pokemon = RaidLevels[raidLevel - 1];
-            }
-            catch (const std::exception& e)
-            {
-                LogErrorAndExit(Concat("Not a valid level '", level, "': ", e.what()));
             }
         }
 
