@@ -26,8 +26,8 @@
 // "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
 // "(charge moves) %b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab). "
 const Utf8::String fullInfoFormat{
-    "%nu) %na\\n"
-    "%Tt,  %ba-%bd-%bs, max. CP %cp\\n"
+    "%nu) %na, max. CP %cp @ L%l\\n"
+    "%Tt, %ba-%bd-%bs, %a-%d-%s @ L%l\\n"
     "Fast moves: %fm\\n"
     "Charge moves: %cm\\n"
     "Gender ratio: %g\\n"
@@ -131,6 +131,7 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%o"}, FloatToString(PropertyValueByName(base, sortCriteria)));
     const auto cp = isRaidBoss ? ComputeRaidBossCp(base, pkm) : ComputeCp(base, pkm);
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
+    fmt = std::regex_replace(fmt, std::regex{"%l"}, FloatToString(pkm.level));
 
     auto snakeCaseToTitleCase = [](auto s) { SnakeCaseToTitleCase(s); return s; };
     auto formatList = [](const auto& v) { return "[" + StringUtils::Join(v, ", ") + "]"; };
@@ -185,7 +186,8 @@ const std::vector<ProgramOption> programsOptions{
         L"%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
         L"%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
         L"%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
-        L"(charge moves) %b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab). "
+        L"(charge moves), %l (Pokémon's level used for the displayed stats), %b (buddy distance, km), %g (gender ratio "
+        L"by male percentage), \\n (new line), \\t (tab). "
         L"Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {
