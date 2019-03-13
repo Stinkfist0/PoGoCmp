@@ -21,17 +21,18 @@
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/transform.hpp>
 
-// "%nu (number), %na (name), %ba (base attack), %bd (base defense), %bs (base stamina), "
-// "%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
-// "%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
-// "(charge moves) %b (buddy distance, km), %g gender ratio by male percentage) \\n (new line), \\t (tab). "
 const Utf8::String fullInfoFormat{
-    "%nu) %na, max. CP %cp @ L%l\\n"
-    "%Tt, %ba-%bd-%bs, %a-%d-%s @ L%l\\n"
-    "Fast moves: %fm\\n"
-    "Charge moves: %cm\\n"
-    "Gender ratio: %g\\n"
-    "Buddy distance: %b km\\n"
+    "%na (%nu)\\n"
+    "- Max. CP %cp @ L%l\\n"
+    "- %ba-%bd-%bs, %a-%d-%s @ L%l\\n"
+    "- %Tt\\n"
+    "- Resists: %NVE\\n"
+    "- Neutral to: %N\\n"
+    "- Weak to: %SE\\n"
+    "- Fast moves: %fm\\n"
+    "- Charge moves: %cm\\n"
+    "- Gender ratio: %g\\n"
+    "- Buddy distance: %b km\\n"
 };
 const Utf8::String defaultFormat{"%nu %na ATK %ba DEF %bd STA %bs TYPE %Tt CP %cp\\n"};
 
@@ -97,6 +98,69 @@ Utf8::String FormatGender(float malePercent, float femalePercent)
     return Utf8::FromWString(genderText);
 }
 
+// returns "[a, b, c]"
+std::string FormatList(const std::vector<std::string>& strings)
+{
+    return "[" + StringUtils::Join(strings, ", ") + "]";
+}
+
+//! @todo generate these to PoGoDb.h.
+const float immunityDamageMultiplier{0.390625f};
+const float nveDamageMultiplier{0.625f};
+const float seDamageMultiplier{0.390625f};
+
+using TypePair = std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>;
+
+struct TypeEffectivenessInfo
+{
+    PoGoCmp::PokemonType at1, at2;
+    PoGoCmp::PokemonType dt1, dt2;
+    float scalar;
+
+    std::string At1() const { return StringUtils::SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(at1)); }
+    std::string At2() const { return StringUtils::SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(at2)); }
+    std::string Dt1() const { return StringUtils::SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(dt1)); }
+    std::string Dt2() const { return StringUtils::SnakeCaseToTitleCaseCopy(PoGoCmp::PokemonTypeToString(dt2)); }
+};
+
+float ComputeEffectiveness(PoGoCmp::PokemonType at, PoGoCmp::PokemonType dt1, PoGoCmp::PokemonType dt2)
+{
+    auto scalar = PoGoCmp::TypeEffectiveness[(int)at][(int)dt1];
+    if (dt2 != PoGoCmp::PokemonType::NONE)
+        scalar *= PoGoCmp::TypeEffectiveness[(int)at][(int)dt2];
+    return scalar;
+}
+
+std::vector<TypeEffectivenessInfo> ComputeEffectiveness(
+    const std::vector<TypePair>& attackTypes,
+    const std::vector<TypePair>& defenderTypes)
+{
+    std::vector<TypeEffectivenessInfo> results;
+    for (const auto& at : attackTypes)
+    {
+        for (const auto& dt : defenderTypes)
+        {
+            auto scalar = ComputeEffectiveness(at.first, dt.first, dt.second);
+            if (at.second != PoGoCmp::PokemonType::NONE)
+            {
+                scalar = std::max(scalar, ComputeEffectiveness(at.second, dt.first, dt.second));
+            }
+
+            results.push_back({at.first, at.second, dt.first, dt.second, scalar});
+        }
+    }
+
+    return results;
+}
+
+std::vector<TypePair> AllSingleTypes()
+{
+    std::vector<TypePair> types;
+    for (int i = 0; i < (int)PoGoCmp::PokemonType::NUM_TYPES; ++i)
+        types.emplace_back((PoGoCmp::PokemonType)i, PoGoCmp::PokemonType::NONE);
+    return types;
+};
+
 //! @param useBaseName For Pokémon with multiple forms with same stats, show only the base name (e.g. "Unown" instead of "Unown A").
 Utf8::String PokemonToString(
     const PoGoCmp::PokemonSpecie& base,
@@ -133,22 +197,54 @@ Utf8::String PokemonToString(
     fmt = std::regex_replace(fmt, std::regex{"%cp"}, std::to_string(cp));
     fmt = std::regex_replace(fmt, std::regex{"%l"}, FloatToString(pkm.level));
 
-    auto snakeCaseToTitleCase = [](auto s) { SnakeCaseToTitleCase(s); return s; };
-    auto formatList = [](const auto& v) { return "[" + StringUtils::Join(v, ", ") + "]"; };
-    auto moves = base.fastMoves;
-    ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
-    fmt = std::regex_replace(fmt, std::regex{"%fm"}, formatList(moves));
+    const std::regex fm{"%fm"}, cm{"%cm"};
+    std::smatch m;
+    if (std::regex_search(fmt, m, fm) || std::regex_search(fmt, m, cm))
+    {
+        auto snakeCaseToTitleCase = [](auto s) { SnakeCaseToTitleCase(s); return s; };
+        auto moves = base.fastMoves;
+        ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
+        fmt = std::regex_replace(fmt, fm, FormatList(moves));
 
-    moves = base.chargeMoves;
-    ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
-    fmt = std::regex_replace(fmt, std::regex{"%cm"}, formatList(moves));
+        moves = base.chargeMoves;
+        ranges::transform(moves, moves.begin(), snakeCaseToTitleCase);
+        fmt = std::regex_replace(fmt, cm, FormatList(moves));
+    }
 
     fmt = std::regex_replace(fmt, std::regex{"%b"}, std::to_string(base.buddyDistance));
-    //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
     fmt = std::regex_replace(fmt, std::regex{"%g"}, FormatGender(base.malePercent, base.femalePercent));
 
+    const std::regex nved{"%NVE"}, nd{"%N"}, sed{"%SE"};
+    if (std::regex_search(fmt, m, nved) || std::regex_search(fmt, m, nd) || std::regex_search(fmt, m, sed))
+    {
+        auto tes = ComputeEffectiveness(AllSingleTypes(), {{base.type, base.type2}});
+        std::vector<std::string> a, b, c;
+        for (const auto& te : tes)
+        {
+            if (te.scalar <= nveDamageMultiplier)
+            {
+                a.push_back(te.At1());
+                // if ... FloatToString(te.scalar) << "\n";
+            }
+            else if (MathUtils::Equals(te.scalar, 1.f))
+            {
+                b.push_back(te.At1());
+            }
+            else if (te.scalar >= seDamageMultiplier)
+            {
+                c.push_back(te.At1());
+                //if ... FloatToString(te.scalar)
+            }
+        }
+        fmt = std::regex_replace(fmt, nved, FormatList(a));
+        fmt = std::regex_replace(fmt, nd, FormatList(b));
+        fmt = std::regex_replace(fmt, sed, FormatList(c));
+    }
+
+    //fmt = std::regex_replace(fmt, std::regex("%%"), "%");
     fmt = std::regex_replace(fmt, std::regex{"\\\\n"}, "\n");
     fmt = std::regex_replace(fmt, std::regex{"\\\\t"}, "\t");
+
     return fmt;
 }
 
@@ -187,7 +283,8 @@ const std::vector<ProgramOption> programsOptions{
         L"%a, %d, %s (effective stats using the specified --level and --ivs), %T (primary type), %t (secondary type) "
         L"%Tt (both types, 2nd type only if applicable), %o (sorting criteria), %cp (max. CP), %fm (fast moves), %cm "
         L"(charge moves), %l (Pokémon's level used for the displayed stats), %b (buddy distance, km), %g (gender ratio "
-        L"by male percentage), \\n (new line), \\t (tab). "
+        L"by male percentage), %SE (types that yield super-effective damage), %N (types that yield neutral damage), "
+        L"%NVE (types that yield not-very-effective damage), \\n (new line), \\t (tab). "
         L"Max. level and perfect IVs by default. See also --ivs and --level."
     },
     {
@@ -549,16 +646,8 @@ int main(int argc, char **argv)
         if (typeinfo.empty())
             LogErrorAndExit("Arguments missing for typeinfo.");
 
-        const auto allTypes = []
-        {
-            std::vector<std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>> types;
-            for (int i = 0; i < (int)PoGoCmp::PokemonType::NUM_TYPES; ++i)
-                types.emplace_back((PoGoCmp::PokemonType)i, PoGoCmp::PokemonType::NONE);
-            return types;
-        };
-
         // types as indices to TypeEffectiveness table
-        std::vector<std::pair<PoGoCmp::PokemonType, PoGoCmp::PokemonType>> attackTypes, defenderTypes;
+        std::vector<TypePair> attackTypes, defenderTypes;
 
         const auto types = Split(typeinfo, ",", StringUtils::RemoveEmptyEntries);
         const auto cmd = types[0];
@@ -581,13 +670,13 @@ int main(int argc, char **argv)
 
             if (cmd == "def")
             {
-                attackTypes = allTypes();
+                attackTypes = AllSingleTypes();
                 defenderTypes.emplace_back(type1, type2);
             }
             else
             {
                 attackTypes.emplace_back(type1, type2);
-                defenderTypes = allTypes();
+                defenderTypes = AllSingleTypes();
             }
         }
         else // typeinfo <pokemon>
@@ -597,7 +686,7 @@ int main(int argc, char **argv)
             if (pkm.number == 0)
                 LogErrorAndExit("'" + types[0] + "'"+ Utf8::FromWString(L" is not a valid argument nor a Pokémon."));
 
-            attackTypes = allTypes();
+            attackTypes = AllSingleTypes();
 
             defenderTypes.emplace_back(pkm.type, pkm.type2);
         }
@@ -605,48 +694,18 @@ int main(int argc, char **argv)
         assert(!attackTypes.empty());
         assert(!defenderTypes.empty());
 
-        const auto computeEffectiveness = [](PoGoCmp::PokemonType at, PoGoCmp::PokemonType dt1, PoGoCmp::PokemonType dt2)
-        {
-            auto scalar = PoGoCmp::TypeEffectiveness[(int)at][(int)dt1];
-            if (dt2 != PoGoCmp::PokemonType::NONE)
-                scalar *= PoGoCmp::TypeEffectiveness[(int)at][(int)dt2];
-            return scalar;
-        };
-
-
-        struct TypeEffectiveness
-        {
-            PoGoCmp::PokemonType at1, at2;
-            PoGoCmp::PokemonType dt1, dt2;
-            float scalar;
-        };
-
-        std::vector<TypeEffectiveness> results;
-        for (const auto& at : attackTypes)
-        {
-            for (const auto& dt : defenderTypes)
-            {
-                auto scalar = computeEffectiveness(at.first, dt.first, dt.second);
-                if (at.second != PoGoCmp::PokemonType::NONE)
-                {
-                    scalar = std::max(scalar, computeEffectiveness(at.second, dt.first, dt.second));
-                }
-
-                results.push_back({at.first, at.second, dt.first, dt.second, scalar});
-            }
-        }
-
+        auto results = ComputeEffectiveness(attackTypes, defenderTypes);
         // sort the results, NVE first, neutral second, SE last
         ranges::sort(results, [](const auto& a, const auto& b) { return a.scalar < b.scalar; });
 
         for (const auto& te: results)
         {
-            std::cout << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.at1));
+            std::cout << te.At1();
             if (te.at2 != PoGoCmp::PokemonType::NONE)
-                std::cout << "/" << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.at2));
-            std::cout << " vs. " << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.dt1));
+                std::cout << "/" << te.At2();
+            std::cout << " vs. " << te.Dt1();
             if (te.dt2 != PoGoCmp::PokemonType::NONE)
-                std::cout << "/" << SnakeCaseToTitleCaseCopy(PokemonTypeToString(te.dt2));
+                std::cout << "/" << te.Dt2();
             std::cout << ": " << FloatToString(te.scalar) << "\n";
         }
 
