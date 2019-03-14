@@ -329,7 +329,7 @@ const std::vector<ProgramOption> programsOptions{
     {
         "perfect-ivs", "",
         L"Generate a search string that can be used to filter perfect wild Pokémon catches. "
-        L"Only single name/ID/number as an argument supported."
+        L"Only single name/ID/number as an argument supported. Forms not supported."
     },
     {
         "info", "",
@@ -593,8 +593,28 @@ int main(int argc, char **argv)
         try
         {
             auto range = ParsePokedexRange(opts.OptionValue("info"));
-            auto base = PoGoCmp::PokemonByNumber.equal_range(range.first).first->second;
-            Utf8::Print(PokemonToString(base, pokemon, fullInfoFormat, "", false));
+
+            if (!range.formId.empty())
+                assert(range.first == range.second);
+
+            for (auto it = range.formId.empty()
+                ? PokemonByNumber.lower_bound(range.first)
+                : std::find_if(
+                    PokemonByNumber.begin(), PokemonByNumber.end(),
+                    [&range](const auto& kvp) { return kvp.first == range.first && kvp.second.id == range.formId; }
+                ),
+                end = PokemonByNumber.upper_bound(range.second);
+                ;
+                ++it)
+            {
+                const auto& base = it->second;
+
+                Utf8::Print(PokemonToString(base, pokemon, fullInfoFormat, "", false));
+
+                if (!range.formId.empty() || it == end)
+                    break;
+            }
+
             ret = EXIT_SUCCESS;
         }
         catch(const std::exception& e)
