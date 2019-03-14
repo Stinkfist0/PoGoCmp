@@ -4,7 +4,10 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/0w5ik8sbxfp95soy/branch/master?svg=true)](https://ci.appveyor.com/project/Stinkfist0/pogocmp/branch/master)
 [![codecov](https://codecov.io/gh/Stinkfist0/PoGoCmp/branch/master/graph/badge.svg)](https://codecov.io/gh/Stinkfist0/PoGoCmp)
 
-Project description TBA.
+A simple command-line tool for Pokémon GO. Motivation for this project was mainly to keep my fingers warm with 
+modern C++ and its ecosystem (build system, testing, CI, package manager, acknowledged libraries) even though 
+it might not be the easiest nor the fastest approach. The aim is to have a proper cross-platform (incl. mobile OSs) 
+GUI application at some point (GUI probably implemented using Cocos2d-x).
 
 ## Supported platforms
 - Windows & MSVC
