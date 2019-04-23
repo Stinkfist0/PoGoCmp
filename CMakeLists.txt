@@ -29,7 +29,6 @@ if (MSVC)
     # With MSVC, VS 2017 or newer assumed
     add_compile_options(/W4 /std:c++17 /utf-8 /permissive-)
 else()
-    set(CMAKE_VERBOSE_MAKEFILE ON)
     add_compile_options(-Wall -Wextra -Wpedantic -std=c++17 -fvisibility=hidden -Wshadow)
 endif()
 
